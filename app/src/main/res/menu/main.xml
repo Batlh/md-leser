@@ -74,6 +74,12 @@
             <item android:id="@+id/op_hoch" android:title="@string/op_hoch" />
             <item android:id="@+id/op_runter" android:title="@string/op_runter" />
             <item android:id="@+id/op_verbinden" android:title="@string/op_verbinden" />
+            <item android:id="@+id/op_einzug_plus" android:title="@string/op_einzug_plus" />
+            <item android:id="@+id/op_einzug_minus" android:title="@string/op_einzug_minus" />
+            <item android:id="@+id/op_leer_oben" android:title="@string/op_leer_oben" />
+            <item android:id="@+id/op_leer_unten" android:title="@string/op_leer_unten" />
+            <item android:id="@+id/op_datum_kurz" android:title="@string/op_datum_kurz" />
+            <item android:id="@+id/op_datum_lang" android:title="@string/op_datum_lang" />
             <item android:id="@+id/op_kommentar" android:title="@string/op_kommentar" />
             <item android:id="@+id/op_gross" android:title="@string/op_gross" />
             <item android:id="@+id/op_klein" android:title="@string/op_klein" />
@@ -93,10 +99,16 @@
             <item android:id="@+id/op_sort_ab" android:title="@string/op_sort_ab" />
             <item android:id="@+id/op_sort_ohne" android:title="@string/op_sort_ohne" />
             <item android:id="@+id/op_sort_zahl" android:title="@string/op_sort_zahl" />
+            <item android:id="@+id/op_sort_laenge" android:title="@string/op_sort_laenge" />
+            <item android:id="@+id/op_umdrehen" android:title="@string/op_umdrehen" />
+            <item android:id="@+id/op_zufall" android:title="@string/op_zufall" />
             <item android:id="@+id/op_doppelte" android:title="@string/op_doppelte" />
+            <item android:id="@+id/op_doppelte_folge" android:title="@string/op_doppelte_folge" />
             <item android:id="@+id/op_leere" android:title="@string/op_leere" />
             <item android:id="@+id/op_trim_ende" android:title="@string/op_trim_ende" />
             <item android:id="@+id/op_trim_anfang" android:title="@string/op_trim_anfang" />
+            <item android:id="@+id/op_trim_beide" android:title="@string/op_trim_beide" />
+            <item android:id="@+id/op_eol_leer" android:title="@string/op_eol_leer" />
             <item android:id="@+id/op_tabs_leer" android:title="@string/op_tabs_leer" />
             <item android:id="@+id/op_leer_tabs" android:title="@string/op_leer_tabs" />
         </menu>
@@ -127,6 +139,19 @@
             <item android:id="@+id/mk_mehrfach" android:title="@string/mk_mehrfach" />
             <item android:id="@+id/mk_speichern" android:title="@string/mk_speichern" />
             <item android:id="@+id/mk_liste" android:title="@string/mk_liste" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/datei_menue"
+        android:orderInCategory="12"
+        android:title="@string/datei_menue"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/dt_name" android:title="@string/dt_name" />
+            <item android:id="@+id/dt_pfad" android:title="@string/dt_pfad" />
+            <item android:id="@+id/dt_schreibschutz" android:checkable="true" android:title="@string/dt_schreibschutz" />
+            <item android:id="@+id/dt_info" android:title="@string/dt_info" />
         </menu>
     </item>
 
@@ -194,6 +219,8 @@
                 <item android:id="@+id/enc_utf8" android:title="UTF-8" />
                 <item android:id="@+id/enc_utf8bom" android:title="UTF-8-BOM" />
                 <item android:id="@+id/enc_ansi" android:title="ANSI (Windows-1252)" />
+                <item android:id="@+id/enc_utf16le" android:title="UTF-16 LE BOM" />
+                <item android:id="@+id/enc_utf16be" android:title="UTF-16 BE BOM" />
             </group>
         </menu>
     </item>
@@ -236,6 +263,7 @@
             <item android:id="@+id/st_einruecken" android:checkable="true" android:title="@string/st_einruecken" />
             <item android:id="@+id/st_klammern" android:checkable="true" android:title="@string/st_klammern" />
             <item android:id="@+id/st_zoom" android:checkable="true" android:title="@string/st_zoom" />
+            <item android:id="@+id/st_vervollstaendigen" android:checkable="true" android:title="@string/st_vervollstaendigen" />
         </menu>
     </item>
 

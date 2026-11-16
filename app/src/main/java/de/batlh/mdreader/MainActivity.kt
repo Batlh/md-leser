@@ -1,5 +1,7 @@
 package de.batlh.mdreader
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Typeface
@@ -61,6 +63,8 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.Charset
+import java.text.DateFormat
+import java.util.Date
 import java.util.concurrent.Executors
 import java.util.regex.PatternSyntaxException
 
@@ -245,12 +249,17 @@ class MainActivity : AppCompatActivity() {
     private fun togglePref(key: String, default: Boolean) {
         prefs.edit().putBoolean(key, !prefs.getBoolean(key, default)).apply()
         applyViewPrefs()
-        current?.let { if (key == KEY_SPACES) editor.setEditorLanguage(language(it.scope)) }
+        current?.let { if (key == KEY_SPACES || key == KEY_COMPLETION) editor.setEditorLanguage(language(it.scope)) }
         invalidateOptionsMenu()
     }
 
     private fun language(scope: String?) =
-        Languages.create(scope, prefs.getBoolean(KEY_SPACES, false), prefs.getInt(KEY_TAB_WIDTH, 4))
+        Languages.create(
+            scope,
+            prefs.getBoolean(KEY_SPACES, false),
+            prefs.getInt(KEY_TAB_WIDTH, 4),
+            prefs.getBoolean(KEY_COMPLETION, false),
+        )
 
     private fun applyTheme() {
         val chosen = prefs.getString(KEY_THEME, "auto") ?: "auto"
@@ -443,6 +452,57 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun indentLines(more: Boolean) {
+        val r = lineRange()
+        val unit = if (prefs.getBoolean(KEY_SPACES, false)) " ".repeat(editor.tabWidth) else "\t"
+        val lines = linesOf(r)
+        replaceLines(r, if (more) LineOps.indent(lines, unit) else LineOps.outdent(lines, editor.tabWidth))
+    }
+
+    private fun insertBlankLine(above: Boolean) {
+        val line = editor.cursor.leftLine
+        if (above) {
+            editor.text.insert(line, 0, "\n")
+            editor.setSelection(line, 0)
+        } else {
+            editor.text.insert(line, editor.text.getColumnCount(line), "\n")
+            editor.setSelection(line + 1, 0)
+        }
+    }
+
+    private fun insertDate(style: Int) {
+        val text = DateFormat.getDateTimeInstance(style, if (style == DateFormat.SHORT) DateFormat.SHORT else DateFormat.MEDIUM)
+            .format(Date())
+        editor.commitText(text, false, false)
+    }
+
+    private fun copyToClipboard(text: String) {
+        getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(text, text))
+        Toast.makeText(this, R.string.kopiert, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun setReadOnly(doc: Doc, readOnly: Boolean) {
+        doc.readOnly = readOnly
+        if (doc === current) editor.isEditable = !readOnly
+        updateTitle()
+        invalidateOptionsMenu()
+    }
+
+    /** Wie „Zusammenfassung“ in Notepad++. */
+    private fun showSummary(doc: Doc) {
+        val text = doc.content.toString()
+        val words = Regex("\\S+").findAll(text).count()
+        val chars = text.count { it != '\n' }
+        val bytes = TextFile.encode(text, doc.format).size
+        val c = editor.cursor
+        val selected = if (doc === current && c.isSelected) c.right - c.left else 0
+        MaterialAlertDialogBuilder(this)
+            .setTitle(doc.name)
+            .setMessage(getString(R.string.info_text, chars, words, doc.content.lineCount, bytes, selected))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
     private fun toggleBookmark() {
         val doc = current ?: return
         val line = editor.cursor.leftLine
@@ -524,6 +584,17 @@ class MainActivity : AppCompatActivity() {
             "bm:toggle" to { toggleBookmark() },
             "bm:next" to { jumpBookmark(true) },
             "bm:prev" to { jumpBookmark(false) },
+            "reverse" to { bulk { LineOps.reverse(it) } },
+            "shuffle" to { bulk { LineOps.shuffle(it) } },
+            "dedupeConsecutive" to { bulk { LineOps.removeConsecutiveDuplicates(it) } },
+            "trimBoth" to { bulk { LineOps.trimBoth(it) } },
+            "eol2space" to { bulk { listOf(LineOps.eolToSpace(it)) } },
+            "indent" to { indentLines(true) },
+            "outdent" to { indentLines(false) },
+            "blankAbove" to { insertBlankLine(true) },
+            "blankBelow" to { insertBlankLine(false) },
+            "date:short" to { insertDate(DateFormat.SHORT) },
+            "date:long" to { insertDate(DateFormat.LONG) },
         )
         LineOps.Case.values().forEach { c -> map["case:${c.name}"] = { changeCase(c) } }
         LineOps.Sort.values().forEach { o -> map["sort:${o.name}"] = { bulk { LineOps.sort(it, o) } } }
@@ -531,6 +602,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cmd(id: String): Boolean = edit {
+        if (current?.readOnly == true && !id.startsWith("bm:")) {
+            Toast.makeText(this, R.string.schreibgeschuetzt_kurz, Toast.LENGTH_SHORT).show()
+            return@edit
+        }
         if (recording && !replaying) recorded += MacroStep.Command(id)
         inCommand = true
         try {
@@ -838,6 +913,10 @@ class MainActivity : AppCompatActivity() {
 
     /** Ersetzt den markierten Treffer und springt zum nächsten. Ist nichts markiert, erst zum Treffer springen. */
     private fun replaceOne() {
+        if (current?.readOnly == true) {
+            Toast.makeText(this, R.string.schreibgeschuetzt_kurz, Toast.LENGTH_SHORT).show()
+            return
+        }
         val q = currentQuery()
         if (q.text.isEmpty()) return
         val text = editor.text
@@ -873,7 +952,7 @@ class MainActivity : AppCompatActivity() {
         }
         var total = 0
         var files = 0
-        for (doc in targets()) {
+        for (doc in targets().filter { !it.readOnly }) {
             val (newText, n) = Search.replaceAll(doc.content.toString(), q, replaceText.text.toString())
             if (n == 0) continue
             total += n
@@ -1079,11 +1158,17 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.st_einruecken)?.isChecked = prefs.getBoolean(KEY_AUTO_INDENT, true)
         menu.findItem(R.id.st_klammern)?.isChecked = prefs.getBoolean(KEY_BRACKETS, true)
         menu.findItem(R.id.st_zoom)?.isChecked = prefs.getBoolean(KEY_ZOOM, true)
+        menu.findItem(R.id.st_vervollstaendigen)?.isChecked = prefs.getBoolean(KEY_COMPLETION, false)
+        item(R.id.datei_menue, has)
+        menu.findItem(R.id.dt_schreibschutz)?.isChecked = doc?.readOnly == true
+        menu.findItem(R.id.dt_pfad)?.isEnabled = doc?.uri != null
         item(R.id.kodierung, has)
         item(R.id.zeilenende, has)
         if (doc != null) {
             val f = doc.format
             val enc = when {
+                f.charset == Charsets.UTF_16LE -> R.id.enc_utf16le
+                f.charset == Charsets.UTF_16BE -> R.id.enc_utf16be
                 f.charset != Charsets.UTF_8 -> R.id.enc_ansi
                 f.bom -> R.id.enc_utf8bom
                 else -> R.id.enc_utf8
@@ -1171,6 +1256,26 @@ class MainActivity : AppCompatActivity() {
             R.id.st_einruecken -> togglePref(KEY_AUTO_INDENT, true)
             R.id.st_klammern -> togglePref(KEY_BRACKETS, true)
             R.id.st_zoom -> togglePref(KEY_ZOOM, true)
+            R.id.st_vervollstaendigen -> togglePref(KEY_COMPLETION, false)
+            R.id.enc_utf16le -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_16LE, bom = true)) }
+            R.id.enc_utf16be -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_16BE, bom = true)) }
+            R.id.op_einzug_plus -> cmd("indent")
+            R.id.op_einzug_minus -> cmd("outdent")
+            R.id.op_leer_oben -> cmd("blankAbove")
+            R.id.op_leer_unten -> cmd("blankBelow")
+            R.id.op_datum_kurz -> cmd("date:short")
+            R.id.op_datum_lang -> cmd("date:long")
+            R.id.op_sort_laenge -> cmd("sort:LENGTH")
+            R.id.op_umdrehen -> cmd("reverse")
+            R.id.op_zufall -> cmd("shuffle")
+            R.id.op_doppelte_folge -> cmd("dedupeConsecutive")
+            R.id.op_trim_beide -> cmd("trimBoth")
+            R.id.op_eol_leer -> cmd("eol2space")
+            R.id.datei_menue -> return false
+            R.id.dt_name -> doc?.let { copyToClipboard(it.name) }
+            R.id.dt_pfad -> doc?.uri?.let { copyToClipboard(Uri.decode(it.toString())) }
+            R.id.dt_schreibschutz -> doc?.let { setReadOnly(it, !it.readOnly) }
+            R.id.dt_info -> doc?.let { showSummary(it) }
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -1202,11 +1307,17 @@ class MainActivity : AppCompatActivity() {
             menu.add(0, 1, 0, R.string.schliessen)
             menu.add(0, 2, 1, R.string.andere_schliessen)
             menu.add(0, 3, 2, R.string.alle_schliessen)
+            menu.add(0, 4, 3, R.string.links_schliessen)
+            menu.add(0, 5, 4, R.string.rechts_schliessen)
+            menu.add(0, 6, 5, R.string.unveraenderte_schliessen)
             setOnMenuItemClickListener {
                 when (it.itemId) {
                     1 -> requestClose(doc)
                     2 -> closeMany(docs.filter { d -> d !== doc })
                     3 -> closeMany(docs.toList())
+                    4 -> closeMany(docs.subList(0, docs.indexOf(doc).coerceAtLeast(0)).toList())
+                    5 -> closeMany(docs.subList((docs.indexOf(doc) + 1).coerceAtMost(docs.size), docs.size).toList())
+                    6 -> closeMany(docs.filter { !it.isDirty })
                 }
                 true
             }
@@ -1224,6 +1335,7 @@ class MainActivity : AppCompatActivity() {
             suppressTabEvents = false
         }
         editor.setText(doc.content)
+        editor.isEditable = !doc.readOnly
         editor.setEditorLanguage(language(doc.scope))
         showDoc(doc)
         if (searchPanel.visibility == View.VISIBLE) runSearch()
@@ -1290,6 +1402,7 @@ class MainActivity : AppCompatActivity() {
         bar.subtitle = when {
             recording -> getString(R.string.mk_laeuft)
             doc.viewMode -> null
+            doc.readOnly -> "$lang · ${doc.format.label} · ${getString(R.string.schreibgeschuetzt_kurz)}"
             else -> "$lang · ${doc.format.label}"
         }
     }
@@ -1577,6 +1690,7 @@ class MainActivity : AppCompatActivity() {
                     .put("scope", d.scope ?: "")
                     .put("formatChanged", d.formatChanged)
                     .put("bookmarks", JSONArray(d.bookmarks.toList()))
+                    .put("readOnly", d.readOnly)
                     .put("scroll", d.viewScroll)
                     .put("line", cursor.leftLine)
                     .put("col", cursor.leftColumn)
@@ -1627,6 +1741,7 @@ class MainActivity : AppCompatActivity() {
                         continue
                     }
                     doc.viewMode = o.optBoolean("view") && doc.isMarkdown
+                    doc.readOnly = o.optBoolean("readOnly")
                     o.optJSONArray("bookmarks")?.let { b ->
                         for (k in 0 until b.length()) doc.bookmarks += b.getInt(k)
                     }
@@ -1736,6 +1851,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_ZOOM = "zoom"
         private const val KEY_THEME = "farbschema"
         private const val KEY_MACROS = "makros"
+        private const val KEY_COMPLETION = "vervollstaendigen"
         private val NAV_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP,
             KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_MOVE_END,

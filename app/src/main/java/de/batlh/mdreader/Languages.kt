@@ -125,13 +125,13 @@ object Languages {
     }
 
     /** Sprache für den Editor. Tab-Taste: Tab-Zeichen oder Leerzeichen, wie eingestellt. */
-    fun create(scope: String?, spaces: Boolean = false, tabSize: Int = 4): Language {
+    fun create(scope: String?, spaces: Boolean = false, tabSize: Int = 4, complete: Boolean = false): Language {
         val plain = object : EmptyLanguage() {
             override fun useTab() = !spaces
         }
         if (scope == null || byScope(scope) == null) return plain
         return try {
-            TextMateLanguage.create(scope, false).apply {
+            TextMateLanguage.create(scope, complete).apply {
                 setTabSize(tabSize)
                 useTab(!spaces)
             }

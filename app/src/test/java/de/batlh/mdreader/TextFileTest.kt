@@ -51,6 +51,16 @@ class TextFileTest {
     }
 
     @Test
+    fun utf16MitBom() {
+        val le = byteArrayOf(0xFF.toByte(), 0xFE.toByte()) + "Ä\r\nb".toByteArray(Charsets.UTF_16LE)
+        val (text, f) = roundTrip(le)
+        assertEquals("Ä\nb", text)
+        assertEquals("UTF-16 LE BOM · Windows (CR LF)", f.label)
+        val be = byteArrayOf(0xFE.toByte(), 0xFF.toByte()) + "x".toByteArray(Charsets.UTF_16BE)
+        assertEquals(Charsets.UTF_16BE, roundTrip(be).second.charset)
+    }
+
+    @Test
     fun leereDatei() {
         val (text, f) = roundTrip(ByteArray(0))
         assertEquals("", text)

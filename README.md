@@ -4,16 +4,16 @@ Android-App zum Lesen und Bearbeiten von Markdown- und Textdateien. Offline, ohn
 
 ## Was sie kann
 
-- `.md`-Dateien über den Ordner-Knopf öffnen oder im Dateimanager mit **Öffnen mit → MD-Leser**
-- Bearbeiten mit Rückgängig/Wiederholen, Speichern, Speichern unter, neue Datei
-- Zeichensatz und Zeilenenden bleiben erhalten (UTF-8, UTF-8-BOM, ANSI, LF/CRLF)
-- Tastenkürzel: Strg+S, Strg+Umschalt+S, Strg+O, Strg+N, Strg+Z, Strg+Y
-- Überschriften, **fett**, *kursiv*, ~~durchgestrichen~~, Listen, Zitate, Codeblöcke
-- Tabellen und Aufgabenlisten
-- Links sind anklickbar, Text lässt sich markieren und kopieren
-- Quelltext-Ansicht, Schriftgröße einstellbar
-- Hell und dunkel, je nach Systemeinstellung
-- Öffnet beim Start die zuletzt geöffnete Datei wieder
+- **Lesen:** Markdown gerendert mit Tabellen, Aufgabenlisten und Links; Öffnen auch über „Öffnen mit“ aus dem Dateimanager
+- **Bearbeiten** wie in Notepad++: Tabs, Sitzung samt ungespeicherter Texte, Zeilennummern, Syntax-Hervorhebung für rund 30 Sprachen
+- **Suchen & Ersetzen:** Normal, Erweitert, Regex, in allen Tabs, Gehe zu Zeile
+- **Zeilen & Text:** duplizieren, verschieben, sortieren, Doppelte entfernen, Groß/klein, Kommentar umschalten, Einzug, Lesezeichen
+- **Kodierung:** UTF-8, UTF-8-BOM, ANSI, UTF-16, Windows-/Unix-Zeilenenden – bleiben beim Speichern erhalten
+- **Makros** aufnehmen, abspielen, speichern
+- **Einstellungen:** Farbschemata, Tabbreite, Einrücken, Wortvervollständigung …
+- Tastenkürzel von Notepad++ mit angeschlossener Tastatur
+
+Was genau aus Notepad++ vorhanden ist und was (noch) fehlt: [FUNKTIONEN.md](FUNKTIONEN.md)
 
 | Spalte A | Spalte B |
 |----------|----------|

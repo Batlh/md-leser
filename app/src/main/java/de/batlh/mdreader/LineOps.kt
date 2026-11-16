@@ -5,13 +5,36 @@ import java.util.Locale
 /** Zeilen- und Textbefehle wie in den Menüs „Bearbeiten“ von Notepad++. Reine Textfunktionen. */
 object LineOps {
 
-    enum class Sort { ASC, DESC, ASC_IGNORE_CASE, NUMERIC }
+    enum class Sort { ASC, DESC, ASC_IGNORE_CASE, NUMERIC, LENGTH }
 
     fun sort(lines: List<String>, how: Sort): List<String> = when (how) {
         Sort.ASC -> lines.sorted()
         Sort.DESC -> lines.sortedDescending()
         Sort.ASC_IGNORE_CASE -> lines.sortedWith(String.CASE_INSENSITIVE_ORDER)
         Sort.NUMERIC -> lines.sortedWith(compareBy<String> { leadingNumber(it) ?: Double.MAX_VALUE }.thenBy { it })
+        Sort.LENGTH -> lines.sortedBy { it.length }
+    }
+
+    fun reverse(lines: List<String>) = lines.reversed()
+    fun shuffle(lines: List<String>) = lines.shuffled()
+
+    /** Nur direkt aufeinanderfolgende gleiche Zeilen entfernen. */
+    fun removeConsecutiveDuplicates(lines: List<String>): List<String> =
+        lines.filterIndexed { i, l -> i == 0 || l != lines[i - 1] }
+
+    fun trimBoth(lines: List<String>) = lines.map { it.trim() }
+
+    /** „Zeilenende zu Leerzeichen“: alles in eine Zeile, Zeilen durch ein Leerzeichen getrennt. */
+    fun eolToSpace(lines: List<String>): String = lines.joinToString(" ")
+
+    fun indent(lines: List<String>, unit: String): List<String> = lines.map { if (it.isEmpty()) it else unit + it }
+
+    /** Eine Einrückungsstufe entfernen: ein Tab oder bis zu [width] Leerzeichen. */
+    fun outdent(lines: List<String>, width: Int): List<String> = lines.map { line ->
+        when {
+            line.startsWith("\t") -> line.substring(1)
+            else -> line.substring(line.takeWhile { it == ' ' }.length.coerceAtMost(width))
+        }
     }
 
     private fun leadingNumber(s: String): Double? =

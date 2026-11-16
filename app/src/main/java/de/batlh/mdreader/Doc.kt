@@ -25,6 +25,9 @@ class Doc(
     /** Kodierung oder Zeilenende umgestellt, aber noch nicht gespeichert. */
     var formatChanged = false
 
+    /** Schreibschutz nur in der App (wie „Read-Only in Notepad++“). */
+    var readOnly = false
+
     /** Lesezeichen (Zeilennummern ab 0). */
     val bookmarks = java.util.TreeSet<Int>()
 

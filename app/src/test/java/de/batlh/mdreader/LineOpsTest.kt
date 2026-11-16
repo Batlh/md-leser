@@ -14,6 +14,17 @@ class LineOpsTest {
     }
 
     @Test
+    fun weitereZeilenbefehle() {
+        assertEquals(listOf("a", "bb", "ccc"), LineOps.sort(listOf("ccc", "a", "bb"), LineOps.Sort.LENGTH))
+        assertEquals(listOf("c", "b", "a"), LineOps.reverse(listOf("a", "b", "c")))
+        assertEquals(listOf("a", "b", "a"), LineOps.removeConsecutiveDuplicates(listOf("a", "a", "b", "a", "a")))
+        assertEquals("a b  c", LineOps.eolToSpace(listOf("a", "b ", "c")))
+        assertEquals(listOf("\tx", "", "\ty"), LineOps.indent(listOf("x", "", "y"), "\t"))
+        assertEquals(listOf("x", "  y", "z"), LineOps.outdent(listOf("\tx", "      y", "z"), 4))
+        assertEquals(setOf("a", "b", "c"), LineOps.shuffle(listOf("a", "b", "c")).toSet())
+    }
+
+    @Test
     fun doppelteUndLeere() {
         assertEquals(listOf("a", "b"), LineOps.removeDuplicates(listOf("a", "b", "a")))
         assertEquals(listOf("a", "b"), LineOps.removeEmpty(listOf("a", "  ", "", "b")))
