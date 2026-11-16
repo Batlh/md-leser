@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -41,7 +41,7 @@ jobs:
             -out "$RUNNER_TEMP/release.keystore" -pass env:PW
           {
             echo "MD_KEYSTORE=$RUNNER_TEMP/release.keystore"
-            echo "MD_KEY_ALIAS=gluckspfennig"
+            echo "MD_KEY_ALIAS=mdleser"
           } >> "$GITHUB_ENV"
       - name: APK bauen
         env:
@@ -58,7 +58,11 @@ jobs:
       - name: Signatur prüfen
         run: |
           SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
-          "$SIGNER" verify --print-certs md-leser.apk
+          "$SIGNER" verify --print-certs md-leser.apk | tee signatur.txt
+          # Mit Secret muss der eigene Schlüssel des MD-Lesers drin sein
+          if [ -n "${MD_KEYSTORE:-}" ]; then
+            grep -qi "619cd85ec80d71cec8a0c7a7e92130cdaecdf8006976fe48e346e2901973851b" signatur.txt
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: md-leser-apk
