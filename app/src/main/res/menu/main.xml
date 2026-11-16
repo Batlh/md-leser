@@ -117,6 +117,20 @@
     </item>
 
     <item
+        android:id="@+id/makro_menue"
+        android:orderInCategory="9"
+        android:title="@string/makro_menue"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/mk_aufnahme" android:title="@string/mk_aufnahme_start" />
+            <item android:id="@+id/mk_abspielen" android:title="@string/mk_abspielen" />
+            <item android:id="@+id/mk_mehrfach" android:title="@string/mk_mehrfach" />
+            <item android:id="@+id/mk_speichern" android:title="@string/mk_speichern" />
+            <item android:id="@+id/mk_liste" android:title="@string/mk_liste" />
+        </menu>
+    </item>
+
+    <item
         android:id="@+id/neu"
         android:orderInCategory="10"
         android:title="@string/neu"
@@ -206,6 +220,22 @@
             <item android:id="@+id/umbruch" android:checkable="true" android:title="@string/umbruch" />
             <item android:id="@+id/alle_zeichen" android:checkable="true" android:title="@string/alle_zeichen" />
             <item android:id="@+id/zeilennummern" android:checkable="true" android:title="@string/zeilennummern" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/einstellungen"
+        android:orderInCategory="30"
+        android:title="@string/einstellungen"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/st_farben" android:title="@string/st_farben" />
+            <item android:id="@+id/st_tabbreite" android:title="@string/st_tabbreite" />
+            <item android:id="@+id/st_leerzeichen" android:checkable="true" android:title="@string/st_leerzeichen" />
+            <item android:id="@+id/st_zeile" android:checkable="true" android:title="@string/st_zeile" />
+            <item android:id="@+id/st_einruecken" android:checkable="true" android:title="@string/st_einruecken" />
+            <item android:id="@+id/st_klammern" android:checkable="true" android:title="@string/st_klammern" />
+            <item android:id="@+id/st_zoom" android:checkable="true" android:title="@string/st_zoom" />
         </menu>
     </item>
 

@@ -124,12 +124,19 @@ object Languages {
         return all.firstOrNull { ext in it.extensions }
     }
 
-    fun create(scope: String?): Language {
-        if (scope == null || byScope(scope) == null) return EmptyLanguage()
+    /** Sprache für den Editor. Tab-Taste: Tab-Zeichen oder Leerzeichen, wie eingestellt. */
+    fun create(scope: String?, spaces: Boolean = false, tabSize: Int = 4): Language {
+        val plain = object : EmptyLanguage() {
+            override fun useTab() = !spaces
+        }
+        if (scope == null || byScope(scope) == null) return plain
         return try {
-            TextMateLanguage.create(scope, false)
+            TextMateLanguage.create(scope, false).apply {
+                setTabSize(tabSize)
+                useTab(!spaces)
+            }
         } catch (_: Exception) {
-            EmptyLanguage()
+            plain
         }
     }
 

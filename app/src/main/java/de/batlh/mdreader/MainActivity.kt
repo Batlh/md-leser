@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.text.method.LinkMovementMethod
@@ -86,6 +87,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var optMode: RadioGroup
     private val searchRunnable = Runnable { runSearch() }
 
+    // Makros
+    private var recording = false
+    private val recorded = ArrayList<MacroStep>()
+    private var lastMacro: List<MacroStep> = emptyList()
+    private var replaying = false
+    private var inCommand = false
+    private var forwardDelete = false
+
     private val prefs by lazy { getSharedPreferences("einstellungen", MODE_PRIVATE) }
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -126,7 +135,7 @@ class MainActivity : AppCompatActivity() {
             doc.name = displayName(uri)
             Languages.detect(doc.name)?.let {
                 doc.scope = it.scope
-                if (doc === current) editor.setEditorLanguage(Languages.create(it.scope))
+                if (doc === current) editor.setEditorLanguage(language(it.scope))
             }
             bindTab(doc)
             writeDocument(doc, uri, then)
@@ -197,7 +206,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupEditor(size: Float) {
         Languages.init(this)
-        Languages.setTheme(if (isNight()) "darcula" else "quietlight")
+        applyTheme()
         try {
             editor.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
         } catch (_: Exception) {
@@ -209,6 +218,7 @@ class MainActivity : AppCompatActivity() {
             if (e.action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return@subscribeAlways
             val doc = current ?: return@subscribeAlways
             if (e.isCausedByUndoManager) doc.checkBackToSaved()
+            if (recording && !replaying && !inCommand && !e.isCausedByUndoManager) recordChange(e)
             if (doc.bookmarks.isNotEmpty()) shiftBookmarks(doc, e)
             refreshState(doc)
         }
@@ -216,6 +226,11 @@ class MainActivity : AppCompatActivity() {
 
     /** Zeilenumbruch, Steuerzeichen und Zeilennummern aus den Einstellungen. */
     private fun applyViewPrefs() {
+        editor.tabWidth = prefs.getInt(KEY_TAB_WIDTH, 4)
+        editor.setHighlightCurrentLine(prefs.getBoolean(KEY_CURRENT_LINE, true))
+        editor.props.autoIndent = prefs.getBoolean(KEY_AUTO_INDENT, true)
+        editor.props.symbolPairAutoCompletion = prefs.getBoolean(KEY_BRACKETS, true)
+        editor.setScalable(prefs.getBoolean(KEY_ZOOM, true))
         editor.setWordwrap(prefs.getBoolean(KEY_WRAP, true))
         editor.setLineNumberEnabled(prefs.getBoolean(KEY_LINE_NUMBERS, true))
         editor.setNonPrintablePaintingFlags(
@@ -230,7 +245,45 @@ class MainActivity : AppCompatActivity() {
     private fun togglePref(key: String, default: Boolean) {
         prefs.edit().putBoolean(key, !prefs.getBoolean(key, default)).apply()
         applyViewPrefs()
+        current?.let { if (key == KEY_SPACES) editor.setEditorLanguage(language(it.scope)) }
         invalidateOptionsMenu()
+    }
+
+    private fun language(scope: String?) =
+        Languages.create(scope, prefs.getBoolean(KEY_SPACES, false), prefs.getInt(KEY_TAB_WIDTH, 4))
+
+    private fun applyTheme() {
+        val chosen = prefs.getString(KEY_THEME, "auto") ?: "auto"
+        Languages.setTheme(if (chosen == "auto") (if (isNight()) "darcula" else "quietlight") else chosen)
+    }
+
+    private fun chooseTheme() {
+        val names = arrayOf<CharSequence>(getString(R.string.st_auto), *Languages.THEMES.map { it.second }.toTypedArray())
+        val keys = listOf("auto") + Languages.THEMES.map { it.first }
+        val checked = keys.indexOf(prefs.getString(KEY_THEME, "auto")).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.st_farben)
+            .setSingleChoiceItems(names, checked) { d, which ->
+                prefs.edit().putString(KEY_THEME, keys[which]).apply()
+                applyTheme()
+                d.dismiss()
+            }
+            .show()
+    }
+
+    private fun chooseTabWidth() {
+        val widths = listOf(2, 4, 8)
+        val names = widths.map { it.toString() as CharSequence }.toTypedArray()
+        val checked = widths.indexOf(prefs.getInt(KEY_TAB_WIDTH, 4)).coerceAtLeast(0)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.st_tabbreite)
+            .setSingleChoiceItems(names, checked) { d, which ->
+                prefs.edit().putInt(KEY_TAB_WIDTH, widths[which]).apply()
+                applyViewPrefs()
+                current?.let { editor.setEditorLanguage(language(it.scope)) }
+                d.dismiss()
+            }
+            .show()
     }
 
     private fun chooseLanguage(doc: Doc) {
@@ -241,7 +294,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(R.string.sprache)
             .setSingleChoiceItems(names, checked) { dialog, which ->
                 doc.scope = if (which == 0) null else langs[which - 1].scope
-                if (doc === current) editor.setEditorLanguage(Languages.create(doc.scope))
+                if (doc === current) editor.setEditorLanguage(language(doc.scope))
                 updateTitle()
                 dialog.dismiss()
             }
@@ -449,6 +502,206 @@ class MainActivity : AppCompatActivity() {
         }
         doc.bookmarks.clear()
         doc.bookmarks.addAll(moved)
+    }
+
+    // ---------- Befehle und Makros ----------
+
+    /** Alle Menübefehle, die ein Makro aufzeichnen und abspielen kann. */
+    private val commands: Map<String, () -> Unit> by lazy {
+        val map = linkedMapOf<String, () -> Unit>(
+            "dup" to { duplicate() },
+            "del" to { deleteLines() },
+            "up" to { moveLines(true) },
+            "down" to { moveLines(false) },
+            "join" to { joinLines() },
+            "comment" to { toggleComment() },
+            "dedupe" to { bulk { LineOps.removeDuplicates(it) } },
+            "empty" to { bulk { LineOps.removeEmpty(it) } },
+            "trimEnd" to { bulk { LineOps.trimTrailing(it) } },
+            "trimStart" to { bulk { LineOps.trimLeading(it) } },
+            "tabs2spaces" to { bulk { LineOps.tabsToSpaces(it, editor.tabWidth) } },
+            "spaces2tabs" to { bulk { LineOps.leadingSpacesToTabs(it, editor.tabWidth) } },
+            "bm:toggle" to { toggleBookmark() },
+            "bm:next" to { jumpBookmark(true) },
+            "bm:prev" to { jumpBookmark(false) },
+        )
+        LineOps.Case.values().forEach { c -> map["case:${c.name}"] = { changeCase(c) } }
+        LineOps.Sort.values().forEach { o -> map["sort:${o.name}"] = { bulk { LineOps.sort(it, o) } } }
+        map
+    }
+
+    private fun cmd(id: String): Boolean = edit {
+        if (recording && !replaying) recorded += MacroStep.Command(id)
+        inCommand = true
+        try {
+            commands[id]?.invoke()
+        } finally {
+            inCommand = false
+        }
+    }
+
+    private fun recordChange(e: ContentChangeEvent) {
+        val text = e.changedText.toString()
+        when (e.action) {
+            ContentChangeEvent.ACTION_INSERT -> recorded += MacroStep.Insert(text)
+            ContentChangeEvent.ACTION_DELETE -> recorded += MacroStep.Delete(text.length, forwardDelete)
+        }
+    }
+
+    private fun toggleRecording() {
+        if (!recording) {
+            recorded.clear()
+            recording = true
+        } else {
+            recording = false
+            lastMacro = Macros.compact(recorded)
+            Toast.makeText(this, getString(R.string.mk_aufgenommen, lastMacro.size), Toast.LENGTH_SHORT).show()
+        }
+        updateTitle()
+        invalidateOptionsMenu()
+    }
+
+    /** Makro abspielen: [times] mal oder bis zum Dateiende. Alles zusammen ist ein Rückgängig-Schritt. */
+    private fun play(steps: List<MacroStep>, times: Int, untilEnd: Boolean = false) {
+        if (steps.isEmpty() || recording) {
+            if (steps.isEmpty()) Toast.makeText(this, R.string.mk_leer, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val text = editor.text
+        replaying = true
+        text.beginBatchEdit()
+        try {
+            var runs = 0
+            while (true) {
+                val before = editor.cursor.left
+                val lines = editor.lineCount
+                steps.forEach { applyStep(it) }
+                runs++
+                if (!untilEnd) {
+                    if (runs >= times) break
+                } else if (editor.cursor.leftLine >= editor.lineCount - 1 ||
+                    (editor.cursor.left == before && editor.lineCount == lines) || runs >= 100_000
+                ) {
+                    break
+                }
+            }
+        } finally {
+            text.endBatchEdit()
+            replaying = false
+        }
+    }
+
+    private fun applyStep(s: MacroStep) {
+        when (s) {
+            is MacroStep.Insert -> editor.commitText(s.text, false, false)
+            is MacroStep.Delete -> if (s.forward) {
+                val start = editor.cursor.left
+                val end = minOf(start + s.count, editor.text.length)
+                if (end > start) editor.text.delete(start, end)
+            } else {
+                repeat(s.count) { editor.deleteText() }
+            }
+            is MacroStep.Command -> {
+                inCommand = true
+                try {
+                    commands[s.id]?.invoke()
+                } finally {
+                    inCommand = false
+                }
+            }
+            is MacroStep.Key -> {
+                val now = SystemClock.uptimeMillis()
+                editor.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, s.code, 0, s.meta))
+                editor.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, s.code, 0, s.meta))
+            }
+        }
+    }
+
+    private fun numberInput(initial: String): Pair<EditText, View> {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setText(initial)
+            selectAll()
+        }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        return input to box
+    }
+
+    private fun askRepeat() {
+        if (lastMacro.isEmpty()) {
+            Toast.makeText(this, R.string.mk_leer, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val (input, box) = numberInput("10")
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mk_wie_oft)
+            .setView(box)
+            .setPositiveButton(R.string.mk_ausfuehren) { _, _ ->
+                input.text.toString().toIntOrNull()?.takeIf { it > 0 }?.let { play(lastMacro, minOf(it, 100_000)) }
+            }
+            .setNeutralButton(R.string.mk_bis_ende) { _, _ -> play(lastMacro, 1, untilEnd = true) }
+            .setNegativeButton(R.string.abbrechen, null)
+            .show()
+    }
+
+    private fun savedMacros(): JSONObject = try {
+        JSONObject(prefs.getString(KEY_MACROS, "{}") ?: "{}")
+    } catch (_: Exception) {
+        JSONObject()
+    }
+
+    private fun saveMacro() {
+        if (lastMacro.isEmpty()) return
+        val input = EditText(this).apply { hint = getString(R.string.mk_name) }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mk_speichern)
+            .setView(box)
+            .setPositiveButton(R.string.speichern) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    val all = savedMacros().put(name, Macros.toJson(lastMacro))
+                    prefs.edit().putString(KEY_MACROS, all.toString()).apply()
+                }
+            }
+            .setNegativeButton(R.string.abbrechen, null)
+            .show()
+    }
+
+    private fun listMacros() {
+        val all = savedMacros()
+        val names = all.keys().asSequence().toList().sorted()
+        if (names.isEmpty()) {
+            Toast.makeText(this, R.string.mk_keine, Toast.LENGTH_SHORT).show()
+            return
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.mk_liste)
+            .setItems(names.map { it as CharSequence }.toTypedArray()) { _, which ->
+                val name = names[which]
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(name)
+                    .setPositiveButton(R.string.mk_ausfuehren) { _, _ ->
+                        lastMacro = Macros.fromJson(all.getJSONArray(name))
+                        invalidateOptionsMenu()
+                        edit { play(lastMacro, 1) }
+                    }
+                    .setNeutralButton(R.string.mk_loeschen) { _, _ ->
+                        all.remove(name)
+                        prefs.edit().putString(KEY_MACROS, all.toString()).apply()
+                    }
+                    .setNegativeButton(R.string.abbrechen, null)
+                    .show()
+            }
+            .show()
     }
 
     // ---------- Suchen / Ersetzen ----------
@@ -703,6 +956,12 @@ class MainActivity : AppCompatActivity() {
 
     // Tastenkürzel wie in Notepad++ (Hardware-Tastatur)
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            forwardDelete = event.keyCode == KeyEvent.KEYCODE_FORWARD_DEL
+            if (recording && !replaying && !event.isCtrlPressed && event.keyCode in NAV_KEYS && current?.viewMode == false) {
+                recorded += MacroStep.Key(event.keyCode, event.metaState and KeyEvent.META_SHIFT_MASK)
+            }
+        }
         if (event.action == KeyEvent.ACTION_DOWN && event.isCtrlPressed) {
             val doc = current
             val handled = when (event.keyCode) {
@@ -734,16 +993,16 @@ class MainActivity : AppCompatActivity() {
                     goToLine()
                     true
                 }
-                KeyEvent.KEYCODE_D -> edit { duplicate() }
-                KeyEvent.KEYCODE_L -> event.isShiftPressed && edit { deleteLines() }
-                KeyEvent.KEYCODE_DPAD_UP -> event.isShiftPressed && edit { moveLines(true) }
-                KeyEvent.KEYCODE_DPAD_DOWN -> event.isShiftPressed && edit { moveLines(false) }
-                KeyEvent.KEYCODE_J -> edit { joinLines() }
-                KeyEvent.KEYCODE_Q -> edit { toggleComment() }
-                KeyEvent.KEYCODE_U -> edit {
-                    changeCase(if (event.isShiftPressed) LineOps.Case.UPPER else LineOps.Case.LOWER)
-                }
-                KeyEvent.KEYCODE_F2 -> edit { toggleBookmark() }
+                KeyEvent.KEYCODE_D -> cmd("dup")
+                KeyEvent.KEYCODE_L -> event.isShiftPressed && cmd("del")
+                KeyEvent.KEYCODE_DPAD_UP -> event.isShiftPressed && cmd("up")
+                KeyEvent.KEYCODE_DPAD_DOWN -> event.isShiftPressed && cmd("down")
+                KeyEvent.KEYCODE_J -> cmd("join")
+                KeyEvent.KEYCODE_Q -> cmd("comment")
+                KeyEvent.KEYCODE_U -> cmd(if (event.isShiftPressed) "case:UPPER" else "case:LOWER")
+                KeyEvent.KEYCODE_R -> event.isShiftPressed && edit { toggleRecording() }
+                KeyEvent.KEYCODE_P -> event.isShiftPressed && edit { play(lastMacro, 1) }
+                KeyEvent.KEYCODE_F2 -> cmd("bm:toggle")
                 KeyEvent.KEYCODE_W -> {
                     doc?.let { requestClose(it) }
                     true
@@ -759,7 +1018,7 @@ class MainActivity : AppCompatActivity() {
         }
         if (event.action == KeyEvent.ACTION_DOWN && !event.isCtrlPressed) {
             if (event.keyCode == KeyEvent.KEYCODE_F2) {
-                edit { jumpBookmark(!event.isShiftPressed) }
+                cmd(if (event.isShiftPressed) "bm:prev" else "bm:next")
                 return true
             }
             if (event.keyCode == KeyEvent.KEYCODE_F3) {
@@ -810,6 +1069,16 @@ class MainActivity : AppCompatActivity() {
         item(R.id.bearbeiten_menue, has)
         item(R.id.zeilen_menue, has)
         item(R.id.lesezeichen_menue, has)
+        item(R.id.makro_menue, has)
+        menu.findItem(R.id.mk_aufnahme)?.setTitle(if (recording) R.string.mk_aufnahme_stopp else R.string.mk_aufnahme_start)
+        menu.findItem(R.id.mk_abspielen)?.isEnabled = lastMacro.isNotEmpty() && !recording
+        menu.findItem(R.id.mk_mehrfach)?.isEnabled = lastMacro.isNotEmpty() && !recording
+        menu.findItem(R.id.mk_speichern)?.isEnabled = lastMacro.isNotEmpty()
+        menu.findItem(R.id.st_leerzeichen)?.isChecked = prefs.getBoolean(KEY_SPACES, false)
+        menu.findItem(R.id.st_zeile)?.isChecked = prefs.getBoolean(KEY_CURRENT_LINE, true)
+        menu.findItem(R.id.st_einruecken)?.isChecked = prefs.getBoolean(KEY_AUTO_INDENT, true)
+        menu.findItem(R.id.st_klammern)?.isChecked = prefs.getBoolean(KEY_BRACKETS, true)
+        menu.findItem(R.id.st_zoom)?.isChecked = prefs.getBoolean(KEY_ZOOM, true)
         item(R.id.kodierung, has)
         item(R.id.zeilenende, has)
         if (doc != null) {
@@ -861,34 +1130,47 @@ class MainActivity : AppCompatActivity() {
             R.id.umbruch -> togglePref(KEY_WRAP, true)
             R.id.alle_zeichen -> togglePref(KEY_ALL_CHARS, false)
             R.id.zeilennummern -> togglePref(KEY_LINE_NUMBERS, true)
-            R.id.op_duplizieren -> edit { duplicate() }
-            R.id.op_zeile_loeschen -> edit { deleteLines() }
-            R.id.op_hoch -> edit { moveLines(true) }
-            R.id.op_runter -> edit { moveLines(false) }
-            R.id.op_verbinden -> edit { joinLines() }
-            R.id.op_kommentar -> edit { toggleComment() }
-            R.id.op_gross -> edit { changeCase(LineOps.Case.UPPER) }
-            R.id.op_klein -> edit { changeCase(LineOps.Case.LOWER) }
-            R.id.op_wort_gross -> edit { changeCase(LineOps.Case.PROPER) }
-            R.id.op_satz_gross -> edit { changeCase(LineOps.Case.SENTENCE) }
-            R.id.op_umkehren -> edit { changeCase(LineOps.Case.INVERT) }
-            R.id.op_sort_auf -> edit { bulk { LineOps.sort(it, LineOps.Sort.ASC) } }
-            R.id.op_sort_ab -> edit { bulk { LineOps.sort(it, LineOps.Sort.DESC) } }
-            R.id.op_sort_ohne -> edit { bulk { LineOps.sort(it, LineOps.Sort.ASC_IGNORE_CASE) } }
-            R.id.op_sort_zahl -> edit { bulk { LineOps.sort(it, LineOps.Sort.NUMERIC) } }
-            R.id.op_doppelte -> edit { bulk { LineOps.removeDuplicates(it) } }
-            R.id.op_leere -> edit { bulk { LineOps.removeEmpty(it) } }
-            R.id.op_trim_ende -> edit { bulk { LineOps.trimTrailing(it) } }
-            R.id.op_trim_anfang -> edit { bulk { LineOps.trimLeading(it) } }
-            R.id.op_tabs_leer -> edit { bulk { LineOps.tabsToSpaces(it, editor.tabWidth) } }
-            R.id.op_leer_tabs -> edit { bulk { LineOps.leadingSpacesToTabs(it, editor.tabWidth) } }
-            R.id.lz_umschalten -> edit { toggleBookmark() }
-            R.id.lz_naechstes -> edit { jumpBookmark(true) }
-            R.id.lz_vorheriges -> edit { jumpBookmark(false) }
+            R.id.op_duplizieren -> cmd("dup")
+            R.id.op_zeile_loeschen -> cmd("del")
+            R.id.op_hoch -> cmd("up")
+            R.id.op_runter -> cmd("down")
+            R.id.op_verbinden -> cmd("join")
+            R.id.op_kommentar -> cmd("comment")
+            R.id.op_gross -> cmd("case:UPPER")
+            R.id.op_klein -> cmd("case:LOWER")
+            R.id.op_wort_gross -> cmd("case:PROPER")
+            R.id.op_satz_gross -> cmd("case:SENTENCE")
+            R.id.op_umkehren -> cmd("case:INVERT")
+            R.id.op_sort_auf -> cmd("sort:ASC")
+            R.id.op_sort_ab -> cmd("sort:DESC")
+            R.id.op_sort_ohne -> cmd("sort:ASC_IGNORE_CASE")
+            R.id.op_sort_zahl -> cmd("sort:NUMERIC")
+            R.id.op_doppelte -> cmd("dedupe")
+            R.id.op_leere -> cmd("empty")
+            R.id.op_trim_ende -> cmd("trimEnd")
+            R.id.op_trim_anfang -> cmd("trimStart")
+            R.id.op_tabs_leer -> cmd("tabs2spaces")
+            R.id.op_leer_tabs -> cmd("spaces2tabs")
+            R.id.lz_umschalten -> cmd("bm:toggle")
+            R.id.lz_naechstes -> cmd("bm:next")
+            R.id.lz_vorheriges -> cmd("bm:prev")
             R.id.lz_liste -> edit { listBookmarks() }
             R.id.lz_loeschen -> current?.bookmarks?.clear()
             R.id.kodierung, R.id.zeilenende, R.id.ansicht,
-            R.id.bearbeiten_menue, R.id.zeilen_menue, R.id.lesezeichen_menue -> return false
+            R.id.bearbeiten_menue, R.id.zeilen_menue, R.id.lesezeichen_menue,
+            R.id.makro_menue, R.id.einstellungen -> return false
+            R.id.mk_aufnahme -> edit { toggleRecording() }
+            R.id.mk_abspielen -> edit { play(lastMacro, 1) }
+            R.id.mk_mehrfach -> edit { askRepeat() }
+            R.id.mk_speichern -> saveMacro()
+            R.id.mk_liste -> listMacros()
+            R.id.st_farben -> chooseTheme()
+            R.id.st_tabbreite -> chooseTabWidth()
+            R.id.st_leerzeichen -> togglePref(KEY_SPACES, false)
+            R.id.st_zeile -> togglePref(KEY_CURRENT_LINE, true)
+            R.id.st_einruecken -> togglePref(KEY_AUTO_INDENT, true)
+            R.id.st_klammern -> togglePref(KEY_BRACKETS, true)
+            R.id.st_zoom -> togglePref(KEY_ZOOM, true)
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -942,7 +1224,7 @@ class MainActivity : AppCompatActivity() {
             suppressTabEvents = false
         }
         editor.setText(doc.content)
-        editor.setEditorLanguage(Languages.create(doc.scope))
+        editor.setEditorLanguage(language(doc.scope))
         showDoc(doc)
         if (searchPanel.visibility == View.VISIBLE) runSearch()
         menuState = ""
@@ -1005,7 +1287,11 @@ class MainActivity : AppCompatActivity() {
         }
         bar.title = (if (doc.isDirty) "*" else "") + doc.name
         val lang = Languages.byScope(doc.scope)?.name ?: getString(R.string.normaler_text)
-        bar.subtitle = if (doc.viewMode) null else "$lang · ${doc.format.label}"
+        bar.subtitle = when {
+            recording -> getString(R.string.mk_laeuft)
+            doc.viewMode -> null
+            else -> "$lang · ${doc.format.label}"
+        }
     }
 
     /** Wechsel zwischen gerendertem Markdown und Bearbeiten, ungefähr an derselben Stelle. */
@@ -1442,6 +1728,19 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_WRAP = "umbruch"
         private const val KEY_ALL_CHARS = "alle_zeichen"
         private const val KEY_LINE_NUMBERS = "zeilennummern"
+        private const val KEY_TAB_WIDTH = "tabbreite"
+        private const val KEY_SPACES = "leerzeichen_statt_tab"
+        private const val KEY_CURRENT_LINE = "aktuelle_zeile"
+        private const val KEY_AUTO_INDENT = "einruecken"
+        private const val KEY_BRACKETS = "klammern"
+        private const val KEY_ZOOM = "zoom"
+        private const val KEY_THEME = "farbschema"
+        private const val KEY_MACROS = "makros"
+        private val NAV_KEYS = setOf(
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_MOVE_END,
+            KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_PAGE_DOWN,
+        )
         private const val MAX_MB = 10
     }
 }
