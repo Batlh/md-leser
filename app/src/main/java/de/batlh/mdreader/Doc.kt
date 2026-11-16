@@ -25,6 +25,9 @@ class Doc(
     /** Kodierung oder Zeilenende umgestellt, aber noch nicht gespeichert. */
     var formatChanged = false
 
+    /** Lesezeichen (Zeilennummern ab 0). */
+    val bookmarks = java.util.TreeSet<Int>()
+
     /** Markdown gerendert anzeigen statt bearbeiten. */
     var viewMode = false
     var viewScroll = 0

@@ -64,6 +64,59 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/bearbeiten_menue"
+        android:orderInCategory="9"
+        android:title="@string/bearbeiten_menue"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/op_duplizieren" android:title="@string/op_duplizieren" />
+            <item android:id="@+id/op_zeile_loeschen" android:title="@string/op_zeile_loeschen" />
+            <item android:id="@+id/op_hoch" android:title="@string/op_hoch" />
+            <item android:id="@+id/op_runter" android:title="@string/op_runter" />
+            <item android:id="@+id/op_verbinden" android:title="@string/op_verbinden" />
+            <item android:id="@+id/op_kommentar" android:title="@string/op_kommentar" />
+            <item android:id="@+id/op_gross" android:title="@string/op_gross" />
+            <item android:id="@+id/op_klein" android:title="@string/op_klein" />
+            <item android:id="@+id/op_wort_gross" android:title="@string/op_wort_gross" />
+            <item android:id="@+id/op_satz_gross" android:title="@string/op_satz_gross" />
+            <item android:id="@+id/op_umkehren" android:title="@string/op_umkehren" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/zeilen_menue"
+        android:orderInCategory="9"
+        android:title="@string/zeilen_menue"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/op_sort_auf" android:title="@string/op_sort_auf" />
+            <item android:id="@+id/op_sort_ab" android:title="@string/op_sort_ab" />
+            <item android:id="@+id/op_sort_ohne" android:title="@string/op_sort_ohne" />
+            <item android:id="@+id/op_sort_zahl" android:title="@string/op_sort_zahl" />
+            <item android:id="@+id/op_doppelte" android:title="@string/op_doppelte" />
+            <item android:id="@+id/op_leere" android:title="@string/op_leere" />
+            <item android:id="@+id/op_trim_ende" android:title="@string/op_trim_ende" />
+            <item android:id="@+id/op_trim_anfang" android:title="@string/op_trim_anfang" />
+            <item android:id="@+id/op_tabs_leer" android:title="@string/op_tabs_leer" />
+            <item android:id="@+id/op_leer_tabs" android:title="@string/op_leer_tabs" />
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/lesezeichen_menue"
+        android:orderInCategory="9"
+        android:title="@string/lesezeichen_menue"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/lz_umschalten" android:title="@string/lz_umschalten" />
+            <item android:id="@+id/lz_naechstes" android:title="@string/lz_naechstes" />
+            <item android:id="@+id/lz_vorheriges" android:title="@string/lz_vorheriges" />
+            <item android:id="@+id/lz_liste" android:title="@string/lz_liste" />
+            <item android:id="@+id/lz_loeschen" android:title="@string/lz_loeschen" />
+        </menu>
+    </item>
+
+    <item
         android:id="@+id/neu"
         android:orderInCategory="10"
         android:title="@string/neu"

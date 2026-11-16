@@ -28,6 +28,12 @@ object Languages {
         Triple("solarized_dark", "Solarized Dark", true),
     )
 
+    /** Kommentarzeichen aus der language-configuration.json einer Sprache. */
+    class Comments(val line: String?, val block: Pair<String, String>?)
+
+    private var configPaths: Map<String, String> = emptyMap()
+    private val commentCache = HashMap<String, Comments>()
+
     @Volatile
     private var ready = false
     var all: List<Lang> = emptyList()
@@ -56,6 +62,16 @@ object Languages {
             false
         }
 
+        try {
+            val defs = JSONObject(app.assets.open("textmate/languages.json").bufferedReader().use { it.readText() })
+                .getJSONArray("languages")
+            configPaths = (0 until defs.length()).mapNotNull {
+                val o = defs.getJSONObject(it)
+                o.optString("languageConfiguration").takeIf { p -> p.isNotEmpty() }?.let { p -> o.getString("scopeName") to p }
+            }.toMap()
+        } catch (_: Exception) {
+        }
+
         val types = JSONObject(app.assets.open("textmate/types.json").bufferedReader().use { it.readText() })
         val list = ArrayList<Lang>()
         for (scope in types.keys()) {
@@ -71,6 +87,29 @@ object Languages {
         }
         all = if (grammarsOk) list.sortedBy { it.name.lowercase() } else emptyList()
         ready = true
+    }
+
+    fun comments(context: Context, scope: String?): Comments? {
+        if (scope == null) return null
+        synchronized(commentCache) {
+            commentCache[scope]?.let { return it }
+            val result = try {
+                val path = configPaths[scope] ?: return null
+                val json = context.assets.open(path).bufferedReader().use { it.readText() }
+                val o = JSONObject(json).optJSONObject("comments")
+                val line = when (val lc = o?.opt("lineComment")) {
+                    is String -> lc
+                    is JSONObject -> lc.optString("comment").takeIf { it.isNotEmpty() }
+                    else -> null
+                }
+                val bc = o?.optJSONArray("blockComment")
+                Comments(line, if (bc != null && bc.length() == 2) bc.getString(0) to bc.getString(1) else null)
+            } catch (_: Exception) {
+                Comments(null, null)
+            }
+            commentCache[scope] = result
+            return result
+        }
     }
 
     fun byScope(scope: String?): Lang? = all.firstOrNull { it.scope == scope }

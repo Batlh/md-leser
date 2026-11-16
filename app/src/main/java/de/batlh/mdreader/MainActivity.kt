@@ -209,6 +209,7 @@ class MainActivity : AppCompatActivity() {
             if (e.action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return@subscribeAlways
             val doc = current ?: return@subscribeAlways
             if (e.isCausedByUndoManager) doc.checkBackToSaved()
+            if (doc.bookmarks.isNotEmpty()) shiftBookmarks(doc, e)
             refreshState(doc)
         }
     }
@@ -256,6 +257,198 @@ class MainActivity : AppCompatActivity() {
         doc.format = format
         doc.formatChanged = true
         refreshState(doc)
+    }
+
+    // ---------- Bearbeiten, Zeilen, Lesezeichen ----------
+
+    /** Befehl im Editor ausführen (aus der Leseansicht vorher umschalten). */
+    private fun edit(block: () -> Unit): Boolean {
+        val doc = current ?: return false
+        if (doc.viewMode) setViewMode(false)
+        try {
+            block()
+        } catch (e: Exception) {
+            Toast.makeText(this, e.message ?: e.javaClass.simpleName, Toast.LENGTH_SHORT).show()
+        }
+        return true
+    }
+
+    /** Zeilen der Auswahl bzw. die Cursorzeile. Endet die Auswahl am Zeilenanfang, zählt die Zeile nicht mit. */
+    private fun lineRange(): IntRange {
+        val c = editor.cursor
+        var last = c.rightLine
+        if (c.isSelected && c.rightColumn == 0 && last > c.leftLine) last--
+        return c.leftLine..last
+    }
+
+    private fun linesOf(range: IntRange): List<String> = range.map { editor.text.getLineString(it) }
+
+    private fun replaceLines(range: IntRange, lines: List<String>, selectFirst: Int = range.first, select: Boolean = true) {
+        val text = editor.text
+        text.beginBatchEdit()
+        try {
+            text.replace(range.first, 0, range.last, text.getColumnCount(range.last), lines.joinToString("\n"))
+        } finally {
+            text.endBatchEdit()
+        }
+        if (select && lines.isNotEmpty()) {
+            val count = lines.size - (selectFirst - range.first).coerceAtLeast(0)
+            val endLine = (selectFirst + count - 1).coerceAtMost(text.lineCount - 1)
+            editor.setSelectionRegion(selectFirst, 0, endLine, text.getColumnCount(endLine))
+        }
+    }
+
+    /** Sortieren, Bereinigen usw.: auf die markierten Zeilen, ohne Auswahl auf die ganze Datei. */
+    private fun bulk(op: (List<String>) -> List<String>) {
+        val range = if (editor.cursor.isSelected) lineRange() else 0 until editor.lineCount
+        val result = op(linesOf(range))
+        replaceLines(range, result.ifEmpty { listOf("") }, select = editor.cursor.isSelected)
+    }
+
+    private fun duplicate() {
+        val text = editor.text
+        val c = editor.cursor
+        if (c.isSelected && c.leftLine == c.rightLine) {
+            text.insert(c.rightLine, c.rightColumn, text.subSequence(c.left, c.right))
+            return
+        }
+        val r = lineRange()
+        text.insert(r.last, text.getColumnCount(r.last), "\n" + linesOf(r).joinToString("\n"))
+    }
+
+    private fun deleteLines() {
+        val text = editor.text
+        val r = lineRange()
+        when {
+            r.last + 1 < text.lineCount -> text.delete(r.first, 0, r.last + 1, 0)
+            r.first > 0 -> text.delete(r.first - 1, text.getColumnCount(r.first - 1), r.last, text.getColumnCount(r.last))
+            else -> text.delete(0, 0, r.last, text.getColumnCount(r.last))
+        }
+    }
+
+    private fun moveLines(up: Boolean) {
+        val r = lineRange()
+        val block = linesOf(r)
+        if (up) {
+            if (r.first == 0) return
+            val prev = editor.text.getLineString(r.first - 1)
+            replaceLines(r.first - 1..r.last, block + prev, selectFirst = r.first - 1, select = false)
+            editor.setSelectionRegion(r.first - 1, 0, r.last - 1, editor.text.getColumnCount(r.last - 1))
+        } else {
+            if (r.last >= editor.lineCount - 1) return
+            val next = editor.text.getLineString(r.last + 1)
+            replaceLines(r.first..r.last + 1, listOf(next) + block, select = false)
+            editor.setSelectionRegion(r.first + 1, 0, r.last + 1, editor.text.getColumnCount(r.last + 1))
+        }
+    }
+
+    private fun joinLines() {
+        var r = lineRange()
+        if (r.first == r.last) {
+            if (r.last + 1 >= editor.lineCount) return
+            r = r.first..r.last + 1
+        }
+        replaceLines(r, listOf(LineOps.join(linesOf(r))))
+    }
+
+    private fun toggleComment() {
+        val doc = current ?: return
+        val comments = Languages.comments(this, doc.scope)
+        val r = lineRange()
+        val line = comments?.line
+        val block = comments?.block
+        when {
+            line != null -> replaceLines(r, LineOps.toggleLineComment(linesOf(r), line))
+            block != null -> {
+                val c = editor.cursor
+                if (c.isSelected && c.leftLine == c.rightLine) {
+                    val sel = editor.text.subSequence(c.left, c.right).toString()
+                    editor.text.replace(c.left, c.right, LineOps.toggleBlockComment(sel, block.first, block.second))
+                } else {
+                    val joined = linesOf(r).joinToString("\n")
+                    replaceLines(r, LineOps.toggleBlockComment(joined, block.first, block.second).split("\n"))
+                }
+            }
+            else -> Toast.makeText(this, R.string.kein_kommentar, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun changeCase(how: LineOps.Case) {
+        val text = editor.text
+        val c = editor.cursor
+        if (c.isSelected) {
+            val start = c.left
+            val startLine = c.leftLine
+            val startCol = c.leftColumn
+            val changed = LineOps.changeCase(text.subSequence(c.left, c.right).toString(), how)
+            text.replace(start, c.right, changed)
+            val end = text.indexer.getCharPosition(start + changed.length)
+            editor.setSelectionRegion(startLine, startCol, end.line, end.column)
+        } else {
+            val r = lineRange()
+            replaceLines(r, linesOf(r).map { LineOps.changeCase(it, how) }, select = false)
+        }
+    }
+
+    private fun toggleBookmark() {
+        val doc = current ?: return
+        val line = editor.cursor.leftLine
+        val msg = if (doc.bookmarks.remove(line)) {
+            R.string.lz_entfernt
+        } else {
+            doc.bookmarks += line
+            R.string.lz_gesetzt
+        }
+        Toast.makeText(this, getString(msg, line + 1), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun jumpBookmark(next: Boolean) {
+        val doc = current ?: return
+        if (doc.bookmarks.isEmpty()) {
+            Toast.makeText(this, R.string.lz_keine, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val line = editor.cursor.leftLine
+        val target = if (next) doc.bookmarks.higher(line) ?: doc.bookmarks.first()
+        else doc.bookmarks.lower(line) ?: doc.bookmarks.last()
+        editor.setSelection(target.coerceAtMost(editor.lineCount - 1), 0)
+    }
+
+    private fun listBookmarks() {
+        val doc = current ?: return
+        val lines = doc.bookmarks.filter { it < editor.lineCount }
+        if (lines.isEmpty()) {
+            Toast.makeText(this, R.string.lz_keine, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val items = lines.map { "${it + 1}: ${editor.text.getLineString(it).trim().take(60)}" as CharSequence }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.lesezeichen_menue)
+            .setItems(items.toTypedArray()) { _, which -> editor.setSelection(lines[which], 0) }
+            .setNeutralButton(R.string.lz_loeschen) { _, _ -> doc.bookmarks.clear() }
+            .show()
+    }
+
+    /** Lesezeichen mitwandern lassen, wenn darüber Zeilen eingefügt oder gelöscht werden. */
+    private fun shiftBookmarks(doc: Doc, e: ContentChangeEvent) {
+        val start = e.changeStart
+        val end = e.changeEnd
+        val delta = end.line - start.line
+        if (delta == 0) return
+        val moved = doc.bookmarks.map { b ->
+            when (e.action) {
+                ContentChangeEvent.ACTION_INSERT ->
+                    if (b > start.line || (b == start.line && start.column == 0)) b + delta else b
+                ContentChangeEvent.ACTION_DELETE -> when {
+                    b > end.line -> b - delta
+                    b > start.line -> start.line
+                    else -> b
+                }
+                else -> b
+            }
+        }
+        doc.bookmarks.clear()
+        doc.bookmarks.addAll(moved)
     }
 
     // ---------- Suchen / Ersetzen ----------
@@ -541,6 +734,16 @@ class MainActivity : AppCompatActivity() {
                     goToLine()
                     true
                 }
+                KeyEvent.KEYCODE_D -> edit { duplicate() }
+                KeyEvent.KEYCODE_L -> event.isShiftPressed && edit { deleteLines() }
+                KeyEvent.KEYCODE_DPAD_UP -> event.isShiftPressed && edit { moveLines(true) }
+                KeyEvent.KEYCODE_DPAD_DOWN -> event.isShiftPressed && edit { moveLines(false) }
+                KeyEvent.KEYCODE_J -> edit { joinLines() }
+                KeyEvent.KEYCODE_Q -> edit { toggleComment() }
+                KeyEvent.KEYCODE_U -> edit {
+                    changeCase(if (event.isShiftPressed) LineOps.Case.UPPER else LineOps.Case.LOWER)
+                }
+                KeyEvent.KEYCODE_F2 -> edit { toggleBookmark() }
                 KeyEvent.KEYCODE_W -> {
                     doc?.let { requestClose(it) }
                     true
@@ -555,6 +758,10 @@ class MainActivity : AppCompatActivity() {
             if (handled) return true
         }
         if (event.action == KeyEvent.ACTION_DOWN && !event.isCtrlPressed) {
+            if (event.keyCode == KeyEvent.KEYCODE_F2) {
+                edit { jumpBookmark(!event.isShiftPressed) }
+                return true
+            }
             if (event.keyCode == KeyEvent.KEYCODE_F3) {
                 findNext(!event.isShiftPressed)
                 return true
@@ -600,6 +807,9 @@ class MainActivity : AppCompatActivity() {
         item(R.id.suchen, has)
         item(R.id.ersetzen, has)
         item(R.id.gehe_zu, has)
+        item(R.id.bearbeiten_menue, has)
+        item(R.id.zeilen_menue, has)
+        item(R.id.lesezeichen_menue, has)
         item(R.id.kodierung, has)
         item(R.id.zeilenende, has)
         if (doc != null) {
@@ -651,7 +861,34 @@ class MainActivity : AppCompatActivity() {
             R.id.umbruch -> togglePref(KEY_WRAP, true)
             R.id.alle_zeichen -> togglePref(KEY_ALL_CHARS, false)
             R.id.zeilennummern -> togglePref(KEY_LINE_NUMBERS, true)
-            R.id.kodierung, R.id.zeilenende, R.id.ansicht -> return false
+            R.id.op_duplizieren -> edit { duplicate() }
+            R.id.op_zeile_loeschen -> edit { deleteLines() }
+            R.id.op_hoch -> edit { moveLines(true) }
+            R.id.op_runter -> edit { moveLines(false) }
+            R.id.op_verbinden -> edit { joinLines() }
+            R.id.op_kommentar -> edit { toggleComment() }
+            R.id.op_gross -> edit { changeCase(LineOps.Case.UPPER) }
+            R.id.op_klein -> edit { changeCase(LineOps.Case.LOWER) }
+            R.id.op_wort_gross -> edit { changeCase(LineOps.Case.PROPER) }
+            R.id.op_satz_gross -> edit { changeCase(LineOps.Case.SENTENCE) }
+            R.id.op_umkehren -> edit { changeCase(LineOps.Case.INVERT) }
+            R.id.op_sort_auf -> edit { bulk { LineOps.sort(it, LineOps.Sort.ASC) } }
+            R.id.op_sort_ab -> edit { bulk { LineOps.sort(it, LineOps.Sort.DESC) } }
+            R.id.op_sort_ohne -> edit { bulk { LineOps.sort(it, LineOps.Sort.ASC_IGNORE_CASE) } }
+            R.id.op_sort_zahl -> edit { bulk { LineOps.sort(it, LineOps.Sort.NUMERIC) } }
+            R.id.op_doppelte -> edit { bulk { LineOps.removeDuplicates(it) } }
+            R.id.op_leere -> edit { bulk { LineOps.removeEmpty(it) } }
+            R.id.op_trim_ende -> edit { bulk { LineOps.trimTrailing(it) } }
+            R.id.op_trim_anfang -> edit { bulk { LineOps.trimLeading(it) } }
+            R.id.op_tabs_leer -> edit { bulk { LineOps.tabsToSpaces(it, editor.tabWidth) } }
+            R.id.op_leer_tabs -> edit { bulk { LineOps.leadingSpacesToTabs(it, editor.tabWidth) } }
+            R.id.lz_umschalten -> edit { toggleBookmark() }
+            R.id.lz_naechstes -> edit { jumpBookmark(true) }
+            R.id.lz_vorheriges -> edit { jumpBookmark(false) }
+            R.id.lz_liste -> edit { listBookmarks() }
+            R.id.lz_loeschen -> current?.bookmarks?.clear()
+            R.id.kodierung, R.id.zeilenende, R.id.ansicht,
+            R.id.bearbeiten_menue, R.id.zeilen_menue, R.id.lesezeichen_menue -> return false
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -1053,6 +1290,7 @@ class MainActivity : AppCompatActivity() {
                     .put("view", d.viewMode)
                     .put("scope", d.scope ?: "")
                     .put("formatChanged", d.formatChanged)
+                    .put("bookmarks", JSONArray(d.bookmarks.toList()))
                     .put("scroll", d.viewScroll)
                     .put("line", cursor.leftLine)
                     .put("col", cursor.leftColumn)
@@ -1103,6 +1341,9 @@ class MainActivity : AppCompatActivity() {
                         continue
                     }
                     doc.viewMode = o.optBoolean("view") && doc.isMarkdown
+                    o.optJSONArray("bookmarks")?.let { b ->
+                        for (k in 0 until b.length()) doc.bookmarks += b.getInt(k)
+                    }
                     if (o.has("scope")) doc.scope = o.optString("scope").takeIf { it.isNotEmpty() }
                     if (o.optBoolean("formatChanged")) {
                         doc.format = FileFormat(
