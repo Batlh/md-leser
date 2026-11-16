@@ -50,7 +50,7 @@ jobs:
           [ -n "${MD_KEYSTORE:-}" ] || unset MD_KEYSTORE_PW
           # Downloads brechen manchmal ab, dann neu versuchen
           for try in 1 2 3; do
-            ./gradlew --no-daemon assembleRelease && break
+            ./gradlew --no-daemon testReleaseUnitTest assembleRelease && break
             [ "$try" = 3 ] && exit 1
             echo "Neuer Versuch in 30 Sekunden"; sleep 30
           done
@@ -74,7 +74,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           v=$(grep 'versionName' app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
-          gh release view "v$v" >/dev/null 2>&1 || \
-            gh release create "v$v" --target "$GITHUB_SHA" --title "MD-Leser $v" \
-              --notes "APK herunterladen und auf dem Handy installieren."
+          notes="release-notes/v$v.md"
+          [ -f "$notes" ] || { echo "APK herunterladen und auf dem Handy installieren." > "$RUNNER_TEMP/notes.md"; notes="$RUNNER_TEMP/notes.md"; }
+          if gh release view "v$v" >/dev/null 2>&1; then
+            gh release edit "v$v" --notes-file "$notes"
+          else
+            gh release create "v$v" --target "$GITHUB_SHA" --title "MD-Leser $v" --notes-file "$notes"
+          fi
           gh release upload "v$v" md-leser.apk --clobber

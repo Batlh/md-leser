@@ -1,10 +1,13 @@
 # MD-Leser
 
-Kleine Android-App zum Lesen von Markdown-Dateien (`.md`). Offline, ohne Werbung, ohne Tracking.
+Android-App zum Lesen und Bearbeiten von Markdown- und Textdateien. Offline, ohne Werbung, ohne Tracking. Wird nach und nach zu einem Editor im Stil von Notepad++ ausgebaut.
 
 ## Was sie kann
 
 - `.md`-Dateien über den Ordner-Knopf öffnen oder im Dateimanager mit **Öffnen mit → MD-Leser**
+- Bearbeiten mit Rückgängig/Wiederholen, Speichern, Speichern unter, neue Datei
+- Zeichensatz und Zeilenenden bleiben erhalten (UTF-8, UTF-8-BOM, ANSI, LF/CRLF)
+- Tastenkürzel: Strg+S, Strg+Umschalt+S, Strg+O, Strg+N, Strg+Z, Strg+Y
 - Überschriften, **fett**, *kursiv*, ~~durchgestrichen~~, Listen, Zitate, Codeblöcke
 - Tabellen und Aufgabenlisten
 - Links sind anklickbar, Text lässt sich markieren und kopieren

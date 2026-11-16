@@ -11,8 +11,8 @@ android {
         applicationId = "de.batlh.mdreader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     // Im Build auf GitHub wird der eigene Schlüssel aus ci/release.keystore.enc genommen
@@ -54,4 +54,6 @@ dependencies {
     implementation("io.noties.markwon:ext-tasklist:$markwon")
     implementation("io.noties.markwon:html:$markwon")
     implementation("io.noties.markwon:linkify:$markwon")
+
+    testImplementation("junit:junit:4.13.2")
 }

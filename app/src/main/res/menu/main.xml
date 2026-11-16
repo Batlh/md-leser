@@ -3,29 +3,81 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/bearbeiten"
+        android:icon="@drawable/ic_edit"
+        android:orderInCategory="1"
+        android:title="@string/bearbeiten"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/lesen"
+        android:icon="@drawable/ic_read"
+        android:orderInCategory="1"
+        android:title="@string/lesen"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/rueckgaengig"
+        android:icon="@drawable/ic_undo"
+        android:orderInCategory="2"
+        android:title="@string/rueckgaengig"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/wiederholen"
+        android:icon="@drawable/ic_redo"
+        android:orderInCategory="3"
+        android:title="@string/wiederholen"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/speichern"
+        android:icon="@drawable/ic_save"
+        android:orderInCategory="4"
+        android:title="@string/speichern"
+        app:showAsAction="ifRoom" />
+
+    <item
         android:id="@+id/oeffnen"
         android:icon="@drawable/ic_open"
+        android:orderInCategory="5"
         android:title="@string/oeffnen"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/neu"
+        android:orderInCategory="10"
+        android:title="@string/neu"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/speichern_unter"
+        android:orderInCategory="11"
+        android:title="@string/speichern_unter"
+        app:showAsAction="never" />
 
     <item
         android:id="@+id/quelltext"
         android:checkable="true"
+        android:orderInCategory="12"
         android:title="@string/quelltext"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/groesser"
+        android:orderInCategory="13"
         android:title="@string/groesser"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/kleiner"
+        android:orderInCategory="14"
         android:title="@string/kleiner"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/neu_laden"
+        android:orderInCategory="15"
         android:title="@string/neu_laden"
         app:showAsAction="never" />
 </menu>

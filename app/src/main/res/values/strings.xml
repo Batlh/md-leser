@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MD-Leser</string>
-    <string name="leer">Tippe oben auf den Ordner, um eine Markdown-Datei zu öffnen.\n\nDu kannst .md-Dateien auch im Dateimanager mit „Öffnen mit → MD-Leser“ öffnen.</string>
+    <string name="leer">Tippe oben auf den Ordner, um eine Datei zu öffnen, oder im Menü auf „Neu“.\n\nDu kannst .md-Dateien auch im Dateimanager mit „Öffnen mit → MD-Leser“ öffnen.</string>
     <string name="oeffnen">Öffnen</string>
+    <string name="neu">Neu</string>
+    <string name="bearbeiten">Bearbeiten</string>
+    <string name="lesen">Lesen</string>
+    <string name="rueckgaengig">Rückgängig</string>
+    <string name="wiederholen">Wiederholen</string>
+    <string name="speichern">Speichern</string>
+    <string name="speichern_unter">Speichern unter …</string>
     <string name="quelltext">Quelltext anzeigen</string>
     <string name="groesser">Schrift größer</string>
     <string name="kleiner">Schrift kleiner</string>
     <string name="neu_laden">Neu laden</string>
+    <string name="unbenannt">Unbenannt.md</string>
+    <string name="gespeichert">Gespeichert</string>
+    <string name="speichern_fehler">Speichern nicht möglich: %1$s</string>
+    <string name="schreibgeschuetzt">Die Originaldatei lässt sich nicht überschreiben. Bitte einen Speicherort wählen.</string>
+    <string name="aenderungen_titel">Ungespeicherte Änderungen</string>
+    <string name="aenderungen_text">Änderungen an „%1$s“ speichern?</string>
+    <string name="verwerfen">Verwerfen</string>
+    <string name="abbrechen">Abbrechen</string>
     <string name="fehler">Die Datei konnte nicht gelesen werden.\n\n%1$s</string>
     <string name="zu_gross">Die Datei ist zu groß (über %1$d MB).</string>
 </resources>
