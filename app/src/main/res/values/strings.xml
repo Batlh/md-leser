@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MD-Leser</string>
+    <string name="leer">Tippe oben auf den Ordner, um eine Markdown-Datei zu öffnen.\n\nDu kannst .md-Dateien auch im Dateimanager mit „Öffnen mit → MD-Leser“ öffnen.</string>
+    <string name="oeffnen">Öffnen</string>
+    <string name="quelltext">Quelltext anzeigen</string>
+    <string name="groesser">Schrift größer</string>
+    <string name="kleiner">Schrift kleiner</string>
+    <string name="neu_laden">Neu laden</string>
+    <string name="fehler">Die Datei konnte nicht gelesen werden.\n\n%1$s</string>
+    <string name="zu_gross">Die Datei ist zu groß (über %1$d MB).</string>
+</resources>

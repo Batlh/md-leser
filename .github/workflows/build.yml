@@ -1,0 +1,76 @@
+name: Build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+      - name: Maven-Spiegel einrichten
+        run: |
+          # Maven Central scheitert auf den Build-Rechnern manchmal mit 504, darum Googles Spiegel
+          mkdir -p ~/.gradle/init.d
+          cp ci/maven-mirror.gradle ~/.gradle/init.d/
+      - name: Signierschlüssel entschlüsseln
+        env:
+          PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$PW" ]; then
+            echo "::warning::Secret ANDROID_KEY_PASSWORD fehlt, es wird mit dem Ersatzschlüssel signiert"
+            exit 0
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in ci/release.keystore.enc \
+            -out "$RUNNER_TEMP/release.keystore" -pass env:PW
+          {
+            echo "MD_KEYSTORE=$RUNNER_TEMP/release.keystore"
+            echo "MD_KEY_ALIAS=gluckspfennig"
+          } >> "$GITHUB_ENV"
+      - name: APK bauen
+        env:
+          MD_KEYSTORE_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          [ -n "${MD_KEYSTORE:-}" ] || unset MD_KEYSTORE_PW
+          # Downloads brechen manchmal ab, dann neu versuchen
+          for try in 1 2 3; do
+            ./gradlew --no-daemon assembleRelease && break
+            [ "$try" = 3 ] && exit 1
+            echo "Neuer Versuch in 30 Sekunden"; sleep 30
+          done
+          cp app/build/outputs/apk/release/app-release.apk md-leser.apk
+      - name: Signatur prüfen
+        run: |
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner
+          "$SIGNER" verify --print-certs md-leser.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: md-leser-apk
+          path: md-leser.apk
+          if-no-files-found: error
+          retention-days: 3
+      - name: Unter Releases bereitstellen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(grep 'versionName' app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          gh release view "v$v" >/dev/null 2>&1 || \
+            gh release create "v$v" --target "$GITHUB_SHA" --title "MD-Leser $v" \
+              --notes "APK herunterladen und auf dem Handy installieren."
+          gh release upload "v$v" md-leser.apk --clobber
