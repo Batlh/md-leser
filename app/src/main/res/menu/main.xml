@@ -57,6 +57,18 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/alle_speichern"
+        android:orderInCategory="11"
+        android:title="@string/alle_speichern"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/schliessen"
+        android:orderInCategory="11"
+        android:title="@string/schliessen"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/quelltext"
         android:checkable="true"
         android:orderInCategory="12"

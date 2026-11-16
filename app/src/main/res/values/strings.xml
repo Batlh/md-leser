@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MD-Leser</string>
-    <string name="leer">Tippe oben auf den Ordner, um eine Datei zu öffnen, oder im Menü auf „Neu“.\n\nDu kannst .md-Dateien auch im Dateimanager mit „Öffnen mit → MD-Leser“ öffnen.</string>
+    <string name="leer">Keine Datei offen.\n\nTippe oben auf den Ordner, um Dateien zu öffnen, oder im Menü auf „Neu“. Im Dateimanager geht auch „Öffnen mit → MD-Leser“.</string>
     <string name="oeffnen">Öffnen</string>
     <string name="neu">Neu</string>
     <string name="bearbeiten">Bearbeiten</string>
@@ -14,7 +14,12 @@
     <string name="groesser">Schrift größer</string>
     <string name="kleiner">Schrift kleiner</string>
     <string name="neu_laden">Neu laden</string>
-    <string name="unbenannt">Unbenannt.md</string>
+    <string name="unbenannt">neu %1$d</string>
+    <string name="alle_speichern">Alle speichern</string>
+    <string name="schliessen">Schließen</string>
+    <string name="andere_schliessen">Alle anderen schließen</string>
+    <string name="alle_schliessen">Alle schließen</string>
+    <string name="nicht_wiederhergestellt">%1$s konnte nicht wieder geöffnet werden</string>
     <string name="gespeichert">Gespeichert</string>
     <string name="speichern_fehler">Speichern nicht möglich: %1$s</string>
     <string name="schreibgeschuetzt">Die Originaldatei lässt sich nicht überschreiben. Bitte einen Speicherort wählen.</string>
