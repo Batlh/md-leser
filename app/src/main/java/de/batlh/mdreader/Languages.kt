@@ -38,14 +38,23 @@ object Languages {
         val app = context.applicationContext
         FileProviderRegistry.getInstance().addFileProvider(AssetsFileResolver(app.assets))
         val themes = ThemeRegistry.getInstance()
+        // Fehler hier dürfen die App nicht abstürzen lassen, dann eben ohne Farben
         for ((file, _, dark) in THEMES) {
-            val path = "textmate/themes/$file.json"
-            val source = IThemeSource.fromInputStream(
-                FileProviderRegistry.getInstance().tryGetInputStream(path), path, null
-            )
-            themes.loadTheme(ThemeModel(source, file).apply { setDark(dark) })
+            try {
+                val path = "textmate/themes/$file.json"
+                val source = IThemeSource.fromInputStream(
+                    FileProviderRegistry.getInstance().tryGetInputStream(path), path, null
+                )
+                themes.loadTheme(ThemeModel(source, file).apply { setDark(dark) })
+            } catch (_: Exception) {
+            }
         }
-        GrammarRegistry.getInstance().loadGrammars("textmate/languages.json")
+        val grammarsOk = try {
+            GrammarRegistry.getInstance().loadGrammars("textmate/languages.json")
+            true
+        } catch (_: Exception) {
+            false
+        }
 
         val types = JSONObject(app.assets.open("textmate/types.json").bufferedReader().use { it.readText() })
         val list = ArrayList<Lang>()
@@ -60,7 +69,7 @@ object Languages {
                 (0 until (names?.length() ?: 0)).map { names!!.getString(it).lowercase() },
             )
         }
-        all = list.sortedBy { it.name.lowercase() }
+        all = if (grammarsOk) list.sortedBy { it.name.lowercase() } else emptyList()
         ready = true
     }
 
@@ -86,6 +95,9 @@ object Languages {
     }
 
     fun setTheme(name: String) {
-        ThemeRegistry.getInstance().setTheme(name)
+        try {
+            ThemeRegistry.getInstance().setTheme(name)
+        } catch (_: Exception) {
+        }
     }
 }

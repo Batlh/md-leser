@@ -21,6 +21,8 @@
         app:tabPaddingEnd="4dp"
         app:tabPaddingStart="12dp" />
 
+    <include layout="@layout/search_panel" />
+
     <FrameLayout
         android:id="@+id/content"
         android:layout_width="match_parent"

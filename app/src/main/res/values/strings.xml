@@ -38,4 +38,25 @@
     <string name="alle_zeichen">Alle Zeichen anzeigen</string>
     <string name="zeilennummern">Zeilennummern</string>
     <string name="ansi_warnung">Manche Zeichen gibt es in ANSI nicht. Sie werden beim Speichern zu „?“.</string>
+    <string name="suchen">Suchen</string>
+    <string name="suchen_menue">Suchen …</string>
+    <string name="ersetzen_menue">Ersetzen …</string>
+    <string name="gehe_zu_zeile">Gehe zu Zeile …</string>
+    <string name="zeile_hinweis">Zeile (1–%1$d)</string>
+    <string name="ersetzen_durch">Ersetzen durch</string>
+    <string name="ersetzen">Ersetzen</string>
+    <string name="alle">Alle</string>
+    <string name="vorheriger">Vorheriger Treffer</string>
+    <string name="naechster">Nächster Treffer</string>
+    <string name="gross_klein">Groß/klein</string>
+    <string name="ganzes_wort">Ganzes Wort</string>
+    <string name="modus_normal">Normal</string>
+    <string name="modus_erweitert">Erweitert (\\n, \\t)</string>
+    <string name="modus_regex">Regex</string>
+    <string name="alle_tabs">Alle Tabs</string>
+    <string name="zaehlen">Zählen</string>
+    <string name="regex_fehler">Regex-Fehler</string>
+    <string name="treffer_gezaehlt">%1$d Treffer in %2$d Datei(en)</string>
+    <string name="ersetzt">%1$d ersetzt in %2$d Datei(en)</string>
+    <string name="los">Los</string>
 </resources>

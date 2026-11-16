@@ -45,6 +45,25 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/suchen"
+        android:icon="@drawable/ic_search"
+        android:orderInCategory="6"
+        android:title="@string/suchen_menue"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/ersetzen"
+        android:orderInCategory="7"
+        android:title="@string/ersetzen_menue"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/gehe_zu"
+        android:orderInCategory="8"
+        android:title="@string/gehe_zu_zeile"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/neu"
         android:orderInCategory="10"
         android:title="@string/neu"

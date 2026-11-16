@@ -8,15 +8,22 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.OpenableColumns
+import android.text.InputType
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.PopupMenu
 import android.widget.ProgressBar
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,10 +33,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnPreDraw
 import androidx.core.widget.NestedScrollView
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.tabs.TabLayout
 import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.event.PublishSearchResultEvent
+import io.github.rosemoe.sora.event.SelectionChangeEvent
+import io.github.rosemoe.sora.util.regex.RegexBackrefGrammar
+import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
@@ -49,6 +61,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.util.concurrent.Executors
+import java.util.regex.PatternSyntaxException
 
 class MainActivity : AppCompatActivity() {
 
@@ -61,6 +74,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var emptyView: TextView
     private lateinit var progress: ProgressBar
     private lateinit var markwon: Markwon
+
+    private lateinit var searchPanel: View
+    private lateinit var replaceRow: View
+    private lateinit var searchQuery: EditText
+    private lateinit var replaceText: EditText
+    private lateinit var searchCount: TextView
+    private lateinit var optCase: CheckBox
+    private lateinit var optWord: CheckBox
+    private lateinit var optAllTabs: CheckBox
+    private lateinit var optMode: RadioGroup
+    private val searchRunnable = Runnable { runSearch() }
 
     private val prefs by lazy { getSharedPreferences("einstellungen", MODE_PRIVATE) }
     private val executor = Executors.newSingleThreadExecutor()
@@ -151,6 +175,7 @@ class MainActivity : AppCompatActivity() {
         textView.setTextIsSelectable(true)
         textView.movementMethod = LinkMovementMethod.getInstance()
         setupEditor(size)
+        setupSearch()
 
         tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
@@ -173,7 +198,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupEditor(size: Float) {
         Languages.init(this)
         Languages.setTheme(if (isNight()) "darcula" else "quietlight")
-        editor.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
+        try {
+            editor.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
+        } catch (_: Exception) {
+        }
         editor.typefaceText = Typeface.MONOSPACE
         editor.setTextSize(size)
         applyViewPrefs()
@@ -230,6 +258,238 @@ class MainActivity : AppCompatActivity() {
         refreshState(doc)
     }
 
+    // ---------- Suchen / Ersetzen ----------
+
+    private fun setupSearch() {
+        searchPanel = findViewById(R.id.search_panel)
+        replaceRow = findViewById(R.id.replace_row)
+        searchQuery = findViewById(R.id.search_query)
+        replaceText = findViewById(R.id.replace_text)
+        searchCount = findViewById(R.id.search_count)
+        optCase = findViewById(R.id.opt_case)
+        optWord = findViewById(R.id.opt_word)
+        optAllTabs = findViewById(R.id.opt_all_tabs)
+        optMode = findViewById(R.id.opt_mode)
+
+        searchQuery.doAfterTextChanged {
+            mainHandler.removeCallbacks(searchRunnable)
+            mainHandler.postDelayed(searchRunnable, 250)
+        }
+        searchQuery.setOnEditorActionListener { _, _, _ ->
+            findNext(true)
+            true
+        }
+        optCase.setOnCheckedChangeListener { _, _ -> runSearch() }
+        optWord.setOnCheckedChangeListener { _, _ -> runSearch() }
+        optMode.setOnCheckedChangeListener { _, _ -> runSearch() }
+        findViewById<ImageButton>(R.id.search_prev).setOnClickListener { findNext(false) }
+        findViewById<ImageButton>(R.id.search_next).setOnClickListener { findNext(true) }
+        findViewById<ImageButton>(R.id.search_close).setOnClickListener { closeSearch() }
+        findViewById<Button>(R.id.replace_one).setOnClickListener { replaceOne() }
+        findViewById<Button>(R.id.replace_all).setOnClickListener { replaceAll() }
+        findViewById<Button>(R.id.search_count_all).setOnClickListener { countAll() }
+
+        editor.subscribeAlways(PublishSearchResultEvent::class.java) { updateCount() }
+        editor.subscribeAlways(SelectionChangeEvent::class.java) {
+            if (searchPanel.visibility == View.VISIBLE) updateCount()
+        }
+    }
+
+    private fun currentQuery(): SearchQuery {
+        val mode = when (optMode.checkedRadioButtonId) {
+            R.id.mode_extended -> SearchMode.EXTENDED
+            R.id.mode_regex -> SearchMode.REGEX
+            else -> SearchMode.NORMAL
+        }
+        return SearchQuery(searchQuery.text.toString(), mode, optCase.isChecked, optWord.isChecked)
+    }
+
+    private fun openSearch(replace: Boolean) {
+        val doc = current ?: return
+        if (doc.viewMode) setViewMode(false)
+        searchPanel.visibility = View.VISIBLE
+        replaceRow.visibility = if (replace) View.VISIBLE else View.GONE
+        val c = editor.cursor
+        if (c.isSelected && c.leftLine == c.rightLine) {
+            searchQuery.setText(editor.text.subSequence(c.left, c.right))
+        }
+        searchQuery.requestFocus()
+        searchQuery.selectAll()
+        getSystemService(InputMethodManager::class.java)?.showSoftInput(searchQuery, 0)
+        runSearch()
+    }
+
+    private fun closeSearch() {
+        mainHandler.removeCallbacks(searchRunnable)
+        searchPanel.visibility = View.GONE
+        try {
+            editor.searcher.stopSearch()
+        } catch (_: Exception) {
+        }
+        getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(searchQuery.windowToken, 0)
+        editor.requestFocus()
+    }
+
+    /** Treffer im Editor markieren. Gesucht wird mit derselben Regel wie beim Ersetzen. */
+    private fun runSearch() {
+        val doc = current
+        if (searchPanel.visibility != View.VISIBLE || doc == null || doc.viewMode) return
+        val q = currentQuery()
+        if (q.text.isEmpty()) {
+            editor.searcher.stopSearch()
+            searchCount.text = ""
+            return
+        }
+        try {
+            Search.pattern(q)
+            val (pattern, type) = when (q.mode) {
+                SearchMode.NORMAL, SearchMode.EXTENDED -> {
+                    val text = if (q.mode == SearchMode.EXTENDED) Search.unescape(q.text) else q.text
+                    text to if (q.wholeWord) EditorSearcher.SearchOptions.TYPE_WHOLE_WORD
+                    else EditorSearcher.SearchOptions.TYPE_NORMAL
+                }
+                SearchMode.REGEX -> (if (q.wholeWord) "\\b(?:${q.text})\\b" else q.text) to
+                    EditorSearcher.SearchOptions.TYPE_REGULAR_EXPRESSION
+            }
+            editor.searcher.search(
+                pattern,
+                EditorSearcher.SearchOptions(type, !q.matchCase, RegexBackrefGrammar.DEFAULT),
+            )
+            searchCount.text = "…"
+        } catch (_: PatternSyntaxException) {
+            editor.searcher.stopSearch()
+            searchCount.text = getString(R.string.regex_fehler)
+        }
+    }
+
+    private fun updateCount() {
+        val s = editor.searcher
+        if (!s.hasQuery()) return
+        try {
+            val n = s.matchedPositionCount
+            val i = s.currentMatchedPositionIndex
+            searchCount.text = when {
+                n == 0 -> "0"
+                i >= 0 -> "${i + 1}/$n"
+                else -> "$n"
+            }
+        } catch (_: IllegalStateException) {
+        }
+    }
+
+    private fun findNext(forward: Boolean) {
+        if (current == null) return
+        if (searchPanel.visibility != View.VISIBLE) {
+            openSearch(false)
+            return
+        }
+        if (!editor.searcher.hasQuery()) runSearch()
+        try {
+            if (forward) editor.searcher.gotoNext() else editor.searcher.gotoPrevious()
+        } catch (_: IllegalStateException) {
+        }
+    }
+
+    /** Ersetzt den markierten Treffer und springt zum nächsten. Ist nichts markiert, erst zum Treffer springen. */
+    private fun replaceOne() {
+        val q = currentQuery()
+        if (q.text.isEmpty()) return
+        val text = editor.text
+        val c = editor.cursor
+        try {
+            val pattern = Search.pattern(q)
+            val full = text.toString()
+            val m = pattern.matcher(full)
+            if (c.isSelected && m.find(c.left) && m.start() == c.left && m.end() == c.right) {
+                val sb = StringBuffer()
+                m.appendReplacement(sb, Search.replacement(q, replaceText.text.toString()))
+                val replacement = sb.substring(c.left)
+                text.replace(c.left, c.right, replacement)
+            }
+            editor.post { findNext(true) }
+        } catch (_: PatternSyntaxException) {
+            searchCount.text = getString(R.string.regex_fehler)
+        } catch (e: Exception) {
+            Toast.makeText(this, e.message ?: e.javaClass.simpleName, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun targets(): List<Doc> = if (optAllTabs.isChecked) docs.toList() else listOfNotNull(current)
+
+    private fun replaceAll() {
+        val q = currentQuery()
+        if (q.text.isEmpty()) return
+        try {
+            Search.pattern(q)
+        } catch (_: PatternSyntaxException) {
+            searchCount.text = getString(R.string.regex_fehler)
+            return
+        }
+        var total = 0
+        var files = 0
+        for (doc in targets()) {
+            val (newText, n) = Search.replaceAll(doc.content.toString(), q, replaceText.text.toString())
+            if (n == 0) continue
+            total += n
+            files++
+            val line = doc.content.cursor.leftLine
+            doc.content.replace(0, doc.content.length, newText)
+            val safe = line.coerceIn(0, doc.content.lineCount - 1)
+            doc.content.cursor.set(safe, 0)
+            refreshState(doc)
+        }
+        Toast.makeText(this, getString(R.string.ersetzt, total, files), Toast.LENGTH_SHORT).show()
+        runSearch()
+    }
+
+    private fun countAll() {
+        val q = currentQuery()
+        if (q.text.isEmpty()) return
+        try {
+            var total = 0
+            var files = 0
+            for (doc in targets()) {
+                val n = Search.count(doc.content, q)
+                if (n > 0) {
+                    total += n
+                    files++
+                }
+            }
+            Toast.makeText(this, getString(R.string.treffer_gezaehlt, total, files), Toast.LENGTH_SHORT).show()
+        } catch (_: PatternSyntaxException) {
+            searchCount.text = getString(R.string.regex_fehler)
+        }
+    }
+
+    private fun goToLine() {
+        val doc = current ?: return
+        if (doc.viewMode) setViewMode(false)
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.zeile_hinweis, editor.lineCount)
+            setText((editor.cursor.leftLine + 1).toString())
+            selectAll()
+        }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = FrameLayout(this).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.gehe_zu_zeile)
+            .setView(box)
+            .setPositiveButton(R.string.los) { _, _ ->
+                input.text.toString().toIntOrNull()?.let { n ->
+                    val line = (n - 1).coerceIn(0, editor.lineCount - 1)
+                    editor.setSelection(line, 0)
+                    editor.requestFocus()
+                }
+            }
+            .setNegativeButton(R.string.abbrechen, null)
+            .show()
+        input.requestFocus()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -269,6 +529,18 @@ class MainActivity : AppCompatActivity() {
                     newDocument()
                     true
                 }
+                KeyEvent.KEYCODE_F -> {
+                    openSearch(false)
+                    true
+                }
+                KeyEvent.KEYCODE_H -> {
+                    openSearch(true)
+                    true
+                }
+                KeyEvent.KEYCODE_G -> {
+                    goToLine()
+                    true
+                }
                 KeyEvent.KEYCODE_W -> {
                     doc?.let { requestClose(it) }
                     true
@@ -281,6 +553,16 @@ class MainActivity : AppCompatActivity() {
                 else -> false
             }
             if (handled) return true
+        }
+        if (event.action == KeyEvent.ACTION_DOWN && !event.isCtrlPressed) {
+            if (event.keyCode == KeyEvent.KEYCODE_F3) {
+                findNext(!event.isShiftPressed)
+                return true
+            }
+            if (event.keyCode == KeyEvent.KEYCODE_ESCAPE && searchPanel.visibility == View.VISIBLE) {
+                closeSearch()
+                return true
+            }
         }
         return super.dispatchKeyEvent(event)
     }
@@ -315,6 +597,9 @@ class MainActivity : AppCompatActivity() {
         menu.findItem(R.id.quelltext)?.isChecked = showSource
         item(R.id.neu_laden, doc?.uri != null)
         item(R.id.sprache, has && !viewing)
+        item(R.id.suchen, has)
+        item(R.id.ersetzen, has)
+        item(R.id.gehe_zu, has)
         item(R.id.kodierung, has)
         item(R.id.zeilenende, has)
         if (doc != null) {
@@ -355,6 +640,9 @@ class MainActivity : AppCompatActivity() {
             R.id.kleiner -> changeTextSize(-2f)
             R.id.neu_laden -> doc?.let { reload(it) }
             R.id.sprache -> doc?.let { chooseLanguage(it) }
+            R.id.suchen -> openSearch(false)
+            R.id.ersetzen -> openSearch(true)
+            R.id.gehe_zu -> goToLine()
             R.id.enc_utf8 -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_8, bom = false)) }
             R.id.enc_utf8bom -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_8, bom = true)) }
             R.id.enc_ansi -> doc?.let { changeFormat(it, it.format.copy(charset = TextFile.ANSI, bom = false)) }
@@ -419,6 +707,7 @@ class MainActivity : AppCompatActivity() {
         editor.setText(doc.content)
         editor.setEditorLanguage(Languages.create(doc.scope))
         showDoc(doc)
+        if (searchPanel.visibility == View.VISIBLE) runSearch()
         menuState = ""
         refreshState(doc)
     }
@@ -447,6 +736,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showEmpty() {
         current = null
+        if (searchPanel.visibility == View.VISIBLE) closeSearch()
         editor.setText(Content())
         editor.visibility = View.GONE
         scroll.visibility = View.GONE
