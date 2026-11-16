@@ -54,8 +54,8 @@ dependencies {
 
     // Editor-Komponente (LGPL 2.1)
     val sora = "0.23.7"
-    implementation("io.github.Rosemoe.sora-editor:editor:$sora")
-    implementation("io.github.Rosemoe.sora-editor:language-textmate:$sora")
+    implementation("io.github.rosemoe:editor:$sora")
+    implementation("io.github.rosemoe:language-textmate:$sora")
 
     val markwon = "4.6.2"
     implementation("io.noties.markwon:core:$markwon")
