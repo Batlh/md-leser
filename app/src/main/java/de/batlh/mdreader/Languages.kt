@@ -1,0 +1,91 @@
+package de.batlh.mdreader
+
+import android.content.Context
+import io.github.rosemoe.sora.lang.EmptyLanguage
+import io.github.rosemoe.sora.lang.Language
+import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
+import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry
+import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
+import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
+import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
+import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver
+import org.eclipse.tm4e.core.registry.IThemeSource
+import org.json.JSONObject
+
+/**
+ * Syntax-Hervorhebung über TextMate-Grammatiken (aus VS Code, MIT) in assets/textmate.
+ * types.json ordnet Dateiendungen den Sprachen zu, wie das Menü „Sprache“ in Notepad++.
+ */
+object Languages {
+
+    class Lang(val scope: String, val name: String, val extensions: List<String>, val filenames: List<String>)
+
+    /** Themes: Name in assets/textmate/themes, Anzeigename, dunkel? */
+    val THEMES = listOf(
+        Triple("quietlight", "Hell (Quiet Light)", false),
+        Triple("darcula", "Dunkel (Darcula)", true),
+        Triple("abyss", "Dunkelblau (Abyss)", true),
+        Triple("solarized_dark", "Solarized Dark", true),
+    )
+
+    @Volatile
+    private var ready = false
+    var all: List<Lang> = emptyList()
+        private set
+
+    fun init(context: Context) = synchronized(this) {
+        if (ready) return@synchronized
+        val app = context.applicationContext
+        FileProviderRegistry.getInstance().addFileProvider(AssetsFileResolver(app.assets))
+        val themes = ThemeRegistry.getInstance()
+        for ((file, _, dark) in THEMES) {
+            val path = "textmate/themes/$file.json"
+            val source = IThemeSource.fromInputStream(
+                FileProviderRegistry.getInstance().tryGetInputStream(path), path, null
+            )
+            themes.loadTheme(ThemeModel(source, file).apply { setDark(dark) })
+        }
+        GrammarRegistry.getInstance().loadGrammars("textmate/languages.json")
+
+        val types = JSONObject(app.assets.open("textmate/types.json").bufferedReader().use { it.readText() })
+        val list = ArrayList<Lang>()
+        for (scope in types.keys()) {
+            val o = types.getJSONObject(scope)
+            val ext = o.optJSONArray("extensions")
+            val names = o.optJSONArray("filenames")
+            list += Lang(
+                scope,
+                o.getString("name"),
+                (0 until (ext?.length() ?: 0)).map { ext!!.getString(it).lowercase() },
+                (0 until (names?.length() ?: 0)).map { names!!.getString(it).lowercase() },
+            )
+        }
+        all = list.sortedBy { it.name.lowercase() }
+        ready = true
+    }
+
+    fun byScope(scope: String?): Lang? = all.firstOrNull { it.scope == scope }
+
+    /** Sprache anhand des Dateinamens, null = normaler Text. */
+    fun detect(fileName: String): Lang? {
+        val lower = fileName.lowercase()
+        all.firstOrNull { lower in it.filenames }?.let { return it }
+        val dot = lower.lastIndexOf('.')
+        if (dot < 0) return null
+        val ext = lower.substring(dot)
+        return all.firstOrNull { ext in it.extensions }
+    }
+
+    fun create(scope: String?): Language {
+        if (scope == null || byScope(scope) == null) return EmptyLanguage()
+        return try {
+            TextMateLanguage.create(scope, false)
+        } catch (_: Exception) {
+            EmptyLanguage()
+        }
+    }
+
+    fun setTheme(name: String) {
+        ThemeRegistry.getInstance().setTheme(name)
+    }
+}

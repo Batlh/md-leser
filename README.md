@@ -34,4 +34,9 @@ Lokal: `./gradlew assembleRelease` (Android SDK nötig).
 
 ## Lizenz
 
-MIT. Markdown-Darstellung mit [Markwon](https://github.com/noties/Markwon) (Apache 2.0).
+Eigener Code: MIT.
+
+Verwendet:
+- [Sora Editor](https://github.com/Rosemoe/sora-editor) (LGPL 2.1) als Editor-Komponente
+- TextMate-Grammatiken aus [VS Code](https://github.com/microsoft/vscode) (MIT, siehe `app/src/main/assets/textmate/LICENSE-vscode.txt`)
+- [Markwon](https://github.com/noties/Markwon) (Apache 2.0) für die Markdown-Ansicht

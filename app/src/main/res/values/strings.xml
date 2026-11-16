@@ -29,4 +29,13 @@
     <string name="abbrechen">Abbrechen</string>
     <string name="fehler">Die Datei konnte nicht gelesen werden.\n\n%1$s</string>
     <string name="zu_gross">Die Datei ist zu groß (über %1$d MB).</string>
+    <string name="sprache">Sprache …</string>
+    <string name="normaler_text">Normaler Text</string>
+    <string name="kodierung">Kodierung</string>
+    <string name="zeilenende">Zeilenende</string>
+    <string name="ansicht">Ansicht</string>
+    <string name="umbruch">Zeilenumbruch</string>
+    <string name="alle_zeichen">Alle Zeichen anzeigen</string>
+    <string name="zeilennummern">Zeilennummern</string>
+    <string name="ansi_warnung">Manche Zeichen gibt es in ANSI nicht. Sie werden beim Speichern zu „?“.</string>
 </resources>

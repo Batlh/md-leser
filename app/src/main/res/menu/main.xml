@@ -92,4 +92,49 @@
         android:orderInCategory="15"
         android:title="@string/neu_laden"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/sprache"
+        android:orderInCategory="20"
+        android:title="@string/sprache"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/kodierung"
+        android:orderInCategory="21"
+        android:title="@string/kodierung"
+        app:showAsAction="never">
+        <menu>
+            <group android:checkableBehavior="single">
+                <item android:id="@+id/enc_utf8" android:title="UTF-8" />
+                <item android:id="@+id/enc_utf8bom" android:title="UTF-8-BOM" />
+                <item android:id="@+id/enc_ansi" android:title="ANSI (Windows-1252)" />
+            </group>
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/zeilenende"
+        android:orderInCategory="22"
+        android:title="@string/zeilenende"
+        app:showAsAction="never">
+        <menu>
+            <group android:checkableBehavior="single">
+                <item android:id="@+id/eol_crlf" android:title="Windows (CR LF)" />
+                <item android:id="@+id/eol_lf" android:title="Unix (LF)" />
+            </group>
+        </menu>
+    </item>
+
+    <item
+        android:id="@+id/ansicht"
+        android:orderInCategory="23"
+        android:title="@string/ansicht"
+        app:showAsAction="never">
+        <menu>
+            <item android:id="@+id/umbruch" android:checkable="true" android:title="@string/umbruch" />
+            <item android:id="@+id/alle_zeichen" android:checkable="true" android:title="@string/alle_zeichen" />
+            <item android:id="@+id/zeilennummern" android:checkable="true" android:title="@string/zeilennummern" />
+        </menu>
+    </item>
+
 </menu>

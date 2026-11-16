@@ -32,8 +32,8 @@ import com.google.android.material.tabs.TabLayout
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
-import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
-import io.github.rosemoe.sora.widget.schemes.SchemeDarcula
+import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
+import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
@@ -100,6 +100,10 @@ class MainActivity : AppCompatActivity() {
             takePermission(uri)
             doc.uri = uri
             doc.name = displayName(uri)
+            Languages.detect(doc.name)?.let {
+                doc.scope = it.scope
+                if (doc === current) editor.setEditorLanguage(Languages.create(it.scope))
+            }
             bindTab(doc)
             writeDocument(doc, uri, then)
         }
@@ -167,16 +171,63 @@ class MainActivity : AppCompatActivity() {
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
     private fun setupEditor(size: Float) {
+        Languages.init(this)
+        Languages.setTheme(if (isNight()) "darcula" else "quietlight")
+        editor.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
         editor.typefaceText = Typeface.MONOSPACE
         editor.setTextSize(size)
-        editor.isWordwrap = true
-        editor.colorScheme = if (isNight()) SchemeDarcula() else EditorColorScheme()
+        applyViewPrefs()
         editor.subscribeAlways(ContentChangeEvent::class.java) { e ->
             if (e.action == ContentChangeEvent.ACTION_SET_NEW_TEXT) return@subscribeAlways
             val doc = current ?: return@subscribeAlways
             if (e.isCausedByUndoManager) doc.checkBackToSaved()
             refreshState(doc)
         }
+    }
+
+    /** Zeilenumbruch, Steuerzeichen und Zeilennummern aus den Einstellungen. */
+    private fun applyViewPrefs() {
+        editor.setWordwrap(prefs.getBoolean(KEY_WRAP, true))
+        editor.setLineNumberEnabled(prefs.getBoolean(KEY_LINE_NUMBERS, true))
+        editor.setNonPrintablePaintingFlags(
+            if (prefs.getBoolean(KEY_ALL_CHARS, false)) {
+                CodeEditor.FLAG_DRAW_WHITESPACE_LEADING or CodeEditor.FLAG_DRAW_WHITESPACE_INNER or
+                    CodeEditor.FLAG_DRAW_WHITESPACE_TRAILING or CodeEditor.FLAG_DRAW_WHITESPACE_FOR_EMPTY_LINE or
+                    CodeEditor.FLAG_DRAW_LINE_SEPARATOR
+            } else 0
+        )
+    }
+
+    private fun togglePref(key: String, default: Boolean) {
+        prefs.edit().putBoolean(key, !prefs.getBoolean(key, default)).apply()
+        applyViewPrefs()
+        invalidateOptionsMenu()
+    }
+
+    private fun chooseLanguage(doc: Doc) {
+        val langs = Languages.all
+        val names = arrayOf<CharSequence>(getString(R.string.normaler_text), *langs.map { it.name }.toTypedArray())
+        val checked = langs.indexOfFirst { it.scope == doc.scope } + 1
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.sprache)
+            .setSingleChoiceItems(names, checked) { dialog, which ->
+                doc.scope = if (which == 0) null else langs[which - 1].scope
+                if (doc === current) editor.setEditorLanguage(Languages.create(doc.scope))
+                updateTitle()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    /** Kodierung oder Zeilenende umstellen (wie „Konvertieren nach“ in Notepad++). */
+    private fun changeFormat(doc: Doc, format: FileFormat) {
+        if (format == doc.format) return
+        if (format.charset != Charsets.UTF_8 && !format.charset.newEncoder().canEncode(doc.content.toString())) {
+            Toast.makeText(this, R.string.ansi_warnung, Toast.LENGTH_LONG).show()
+        }
+        doc.format = format
+        doc.formatChanged = true
+        refreshState(doc)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -263,6 +314,22 @@ class MainActivity : AppCompatActivity() {
         item(R.id.quelltext, viewing)
         menu.findItem(R.id.quelltext)?.isChecked = showSource
         item(R.id.neu_laden, doc?.uri != null)
+        item(R.id.sprache, has && !viewing)
+        item(R.id.kodierung, has)
+        item(R.id.zeilenende, has)
+        if (doc != null) {
+            val f = doc.format
+            val enc = when {
+                f.charset != Charsets.UTF_8 -> R.id.enc_ansi
+                f.bom -> R.id.enc_utf8bom
+                else -> R.id.enc_utf8
+            }
+            menu.findItem(enc)?.isChecked = true
+            menu.findItem(if (f.crlf) R.id.eol_crlf else R.id.eol_lf)?.isChecked = true
+        }
+        menu.findItem(R.id.umbruch)?.isChecked = prefs.getBoolean(KEY_WRAP, true)
+        menu.findItem(R.id.alle_zeichen)?.isChecked = prefs.getBoolean(KEY_ALL_CHARS, false)
+        menu.findItem(R.id.zeilennummern)?.isChecked = prefs.getBoolean(KEY_LINE_NUMBERS, true)
         return super.onPrepareOptionsMenu(menu)
     }
 
@@ -287,6 +354,16 @@ class MainActivity : AppCompatActivity() {
             R.id.groesser -> changeTextSize(2f)
             R.id.kleiner -> changeTextSize(-2f)
             R.id.neu_laden -> doc?.let { reload(it) }
+            R.id.sprache -> doc?.let { chooseLanguage(it) }
+            R.id.enc_utf8 -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_8, bom = false)) }
+            R.id.enc_utf8bom -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_8, bom = true)) }
+            R.id.enc_ansi -> doc?.let { changeFormat(it, it.format.copy(charset = TextFile.ANSI, bom = false)) }
+            R.id.eol_crlf -> doc?.let { changeFormat(it, it.format.copy(crlf = true)) }
+            R.id.eol_lf -> doc?.let { changeFormat(it, it.format.copy(crlf = false)) }
+            R.id.umbruch -> togglePref(KEY_WRAP, true)
+            R.id.alle_zeichen -> togglePref(KEY_ALL_CHARS, false)
+            R.id.zeilennummern -> togglePref(KEY_LINE_NUMBERS, true)
+            R.id.kodierung, R.id.zeilenende, R.id.ansicht -> return false
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -340,6 +417,7 @@ class MainActivity : AppCompatActivity() {
             suppressTabEvents = false
         }
         editor.setText(doc.content)
+        editor.setEditorLanguage(Languages.create(doc.scope))
         showDoc(doc)
         menuState = ""
         refreshState(doc)
@@ -383,7 +461,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshState(doc: Doc) {
         bindTab(doc)
         if (doc === current) updateTitle()
-        val state = "${doc.isDirty}${editor.canUndo()}${editor.canRedo()}${doc.viewMode}$saving"
+        val state = "${doc.isDirty}${editor.canUndo()}${editor.canRedo()}${doc.viewMode}$saving${doc.format}"
         if (state != menuState) {
             menuState = state
             invalidateOptionsMenu()
@@ -399,7 +477,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         bar.title = (if (doc.isDirty) "*" else "") + doc.name
-        bar.subtitle = if (doc.viewMode) null else doc.format.label
+        val lang = Languages.byScope(doc.scope)?.name ?: getString(R.string.normaler_text)
+        bar.subtitle = if (doc.viewMode) null else "$lang · ${doc.format.label}"
     }
 
     /** Wechsel zwischen gerendertem Markdown und Bearbeiten, ungefähr an derselben Stelle. */
@@ -682,6 +761,8 @@ class MainActivity : AppCompatActivity() {
                     .put("bom", d.format.bom)
                     .put("crlf", d.format.crlf)
                     .put("view", d.viewMode)
+                    .put("scope", d.scope ?: "")
+                    .put("formatChanged", d.formatChanged)
                     .put("scroll", d.viewScroll)
                     .put("line", cursor.leftLine)
                     .put("col", cursor.leftColumn)
@@ -732,6 +813,15 @@ class MainActivity : AppCompatActivity() {
                         continue
                     }
                     doc.viewMode = o.optBoolean("view") && doc.isMarkdown
+                    if (o.has("scope")) doc.scope = o.optString("scope").takeIf { it.isNotEmpty() }
+                    if (o.optBoolean("formatChanged")) {
+                        doc.format = FileFormat(
+                            Charset.forName(o.optString("charset", "UTF-8")),
+                            o.optBoolean("bom"),
+                            o.optBoolean("crlf"),
+                        )
+                        doc.formatChanged = true
+                    }
                     doc.viewScroll = o.optInt("scroll")
                     val line = o.optInt("line")
                     val col = o.optInt("col")
@@ -818,6 +908,9 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_LAST = "zuletzt"
         private const val KEY_SIZE = "schrift"
         private const val SESSION_FILE = "sitzung.json"
+        private const val KEY_WRAP = "umbruch"
+        private const val KEY_ALL_CHARS = "alle_zeichen"
+        private const val KEY_LINE_NUMBERS = "zeilennummern"
         private const val MAX_MB = 10
     }
 }

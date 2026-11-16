@@ -1,0 +1,501 @@
+{
+ "source.batchfile": {
+  "name": "Batch",
+  "extensions": [
+   ".bat",
+   ".cmd"
+  ],
+  "filenames": []
+ },
+ "source.c": {
+  "name": "C",
+  "extensions": [
+   ".c",
+   ".i"
+  ],
+  "filenames": []
+ },
+ "source.cpp": {
+  "name": "C++",
+  "extensions": [
+   ".cpp",
+   ".cppm",
+   ".cc",
+   ".ccm",
+   ".cxx",
+   ".cxxm",
+   ".c++",
+   ".c++m",
+   ".hpp",
+   ".hh",
+   ".hxx",
+   ".h++",
+   ".h",
+   ".ii",
+   ".ino",
+   ".inl",
+   ".ipp",
+   ".ixx",
+   ".mpp",
+   ".mxx",
+   ".tpp",
+   ".txx",
+   ".hpp.in",
+   ".h.in"
+  ],
+  "filenames": []
+ },
+ "source.cuda-cpp": {
+  "name": "CUDA C++",
+  "extensions": [
+   ".cu",
+   ".cuh"
+  ],
+  "filenames": []
+ },
+ "source.cs": {
+  "name": "C#",
+  "extensions": [
+   ".cs",
+   ".csx",
+   ".cake"
+  ],
+  "filenames": []
+ },
+ "source.css": {
+  "name": "CSS",
+  "extensions": [
+   ".css"
+  ],
+  "filenames": []
+ },
+ "source.diff": {
+  "name": "Diff",
+  "extensions": [
+   ".diff",
+   ".patch",
+   ".rej"
+  ],
+  "filenames": []
+ },
+ "source.go": {
+  "name": "Go",
+  "extensions": [
+   ".go"
+  ],
+  "filenames": []
+ },
+ "source.ini": {
+  "name": "INI",
+  "extensions": [
+   ".conf",
+   ".properties",
+   ".cfg",
+   ".directory",
+   ".gitattributes",
+   ".gitconfig",
+   ".gitmodules",
+   ".editorconfig",
+   ".repo",
+   ".ini",
+   ".toml"
+  ],
+  "filenames": [
+   "gitconfig"
+  ]
+ },
+ "source.java": {
+  "name": "Java",
+  "extensions": [
+   ".java",
+   ".jav"
+  ],
+  "filenames": []
+ },
+ "source.js.jsx": {
+  "name": "JavaScript JSX",
+  "extensions": [
+   ".jsx"
+  ],
+  "filenames": []
+ },
+ "source.js": {
+  "name": "JavaScript",
+  "extensions": [
+   ".js",
+   ".es6",
+   ".mjs",
+   ".cjs",
+   ".pac"
+  ],
+  "filenames": [
+   "jakefile"
+  ]
+ },
+ "source.json": {
+  "name": "JSON",
+  "extensions": [
+   ".json",
+   ".bowerrc",
+   ".jscsrc",
+   ".webmanifest",
+   ".js.map",
+   ".css.map",
+   ".ts.map",
+   ".har",
+   ".jslintrc",
+   ".jsonld",
+   ".geojson",
+   ".ipynb",
+   ".vuerc"
+  ],
+  "filenames": [
+   "composer.lock",
+   ".watchmanconfig"
+  ]
+ },
+ "source.json.comments": {
+  "name": "JSON with Comments",
+  "extensions": [
+   ".jsonc",
+   ".eslintrc",
+   ".eslintrc.json",
+   ".jsfmtrc",
+   ".jshintrc",
+   ".swcrc",
+   ".hintrc",
+   ".babelrc",
+   ".toolset.jsonc"
+  ],
+  "filenames": [
+   "babel.config.json",
+   "bun.lock",
+   ".babelrc.json",
+   ".ember-cli",
+   "typedoc.json"
+  ]
+ },
+ "source.json.lines": {
+  "name": "JSON Lines",
+  "extensions": [
+   ".jsonl",
+   ".ndjson"
+  ],
+  "filenames": []
+ },
+ "source.lua": {
+  "name": "Lua",
+  "extensions": [
+   ".lua",
+   ".toc"
+  ],
+  "filenames": []
+ },
+ "source.makefile": {
+  "name": "Makefile",
+  "extensions": [
+   ".mak",
+   ".mk"
+  ],
+  "filenames": [
+   "Makefile",
+   "makefile",
+   "GNUmakefile",
+   "OCamlMakefile"
+  ]
+ },
+ "text.html.markdown": {
+  "name": "Markdown",
+  "extensions": [
+   ".md",
+   ".mkd",
+   ".mkdn",
+   ".mdwn",
+   ".mdown",
+   ".markdown",
+   ".markdn",
+   ".mdtxt",
+   ".mdtext",
+   ".litcoffee",
+   ".ron",
+   ".ronn",
+   ".workbook"
+  ],
+  "filenames": []
+ },
+ "text.html.php": {
+  "name": "PHP",
+  "extensions": [
+   ".php",
+   ".php4",
+   ".php5",
+   ".phtml",
+   ".ctp"
+  ],
+  "filenames": []
+ },
+ "source.powershell": {
+  "name": "PowerShell",
+  "extensions": [
+   ".ps1",
+   ".psm1",
+   ".psd1",
+   ".pssc",
+   ".psrc"
+  ],
+  "filenames": []
+ },
+ "source.python": {
+  "name": "Python",
+  "extensions": [
+   ".py",
+   ".rpy",
+   ".pyw",
+   ".cpy",
+   ".gyp",
+   ".gypi",
+   ".pyi",
+   ".ipy",
+   ".pyt"
+  ],
+  "filenames": [
+   "SConstruct",
+   "SConscript"
+  ]
+ },
+ "source.ruby": {
+  "name": "Ruby",
+  "extensions": [
+   ".rb",
+   ".rbx",
+   ".rjs",
+   ".gemspec",
+   ".rake",
+   ".ru",
+   ".erb",
+   ".podspec",
+   ".rbi"
+  ],
+  "filenames": [
+   "rakefile",
+   "gemfile",
+   "guardfile",
+   "podfile",
+   "capfile",
+   "cheffile",
+   "hobofile",
+   "vagrantfile",
+   "appraisals",
+   "rantfile",
+   "berksfile",
+   "berksfile.lock",
+   "thorfile",
+   "puppetfile",
+   "dangerfile",
+   "brewfile",
+   "fastfile",
+   "appfile",
+   "deliverfile",
+   "matchfile",
+   "scanfile",
+   "snapfile",
+   "gymfile"
+  ]
+ },
+ "source.rust": {
+  "name": "Rust",
+  "extensions": [
+   ".rs"
+  ],
+  "filenames": []
+ },
+ "source.shell": {
+  "name": "Shell Script",
+  "extensions": [
+   ".sh",
+   ".bash",
+   ".bashrc",
+   ".bash_aliases",
+   ".bash_profile",
+   ".bash_login",
+   ".ebuild",
+   ".eclass",
+   ".profile",
+   ".bash_logout",
+   ".xprofile",
+   ".xsession",
+   ".xsessionrc",
+   ".xsession",
+   ".zsh",
+   ".zshrc",
+   ".zprofile",
+   ".zlogin",
+   ".zlogout",
+   ".zshenv",
+   ".zsh-theme",
+   ".fish",
+   ".ksh",
+   ".csh",
+   ".cshrc",
+   ".tcshrc",
+   ".yashrc",
+   ".yash_profile"
+  ],
+  "filenames": [
+   "APKBUILD",
+   "PKGBUILD",
+   ".envrc",
+   ".hushlogin",
+   "zshrc",
+   "zshenv",
+   "zlogin",
+   "zprofile",
+   "zlogout",
+   "bashrc_Apple_Terminal",
+   "zshrc_Apple_Terminal"
+  ]
+ },
+ "source.sql": {
+  "name": "MS SQL",
+  "extensions": [
+   ".sql",
+   ".dsql"
+  ],
+  "filenames": []
+ },
+ "source.ts": {
+  "name": "TypeScript",
+  "extensions": [
+   ".ts",
+   ".cts",
+   ".mts"
+  ],
+  "filenames": []
+ },
+ "source.tsx": {
+  "name": "TypeScript JSX",
+  "extensions": [
+   ".tsx"
+  ],
+  "filenames": []
+ },
+ "text.xml": {
+  "name": "XML",
+  "extensions": [
+   ".xml",
+   ".xsd",
+   ".ascx",
+   ".atom",
+   ".axml",
+   ".axaml",
+   ".bpmn",
+   ".cpt",
+   ".csl",
+   ".csproj",
+   ".csproj.user",
+   ".dita",
+   ".ditamap",
+   ".dtd",
+   ".ent",
+   ".mod",
+   ".dtml",
+   ".fsproj",
+   ".fxml",
+   ".iml",
+   ".isml",
+   ".jmx",
+   ".launch",
+   ".menu",
+   ".mxml",
+   ".nuspec",
+   ".opml",
+   ".owl",
+   ".proj",
+   ".props",
+   ".pt",
+   ".publishsettings",
+   ".pubxml",
+   ".pubxml.user",
+   ".rbxlx",
+   ".rbxmx",
+   ".rdf",
+   ".rng",
+   ".rss",
+   ".shproj",
+   ".slnx",
+   ".storyboard",
+   ".svg",
+   ".targets",
+   ".tld",
+   ".tmx",
+   ".vbproj",
+   ".vbproj.user",
+   ".vcxproj",
+   ".vcxproj.filters",
+   ".wixproj",
+   ".wsdl",
+   ".wxi",
+   ".wxl",
+   ".wxs",
+   ".xaml",
+   ".xbl",
+   ".xib",
+   ".xlf",
+   ".xliff",
+   ".xpdl",
+   ".xul",
+   ".xoml"
+  ],
+  "filenames": []
+ },
+ "text.xml.xsl": {
+  "name": "XSL",
+  "extensions": [
+   ".xsl",
+   ".xslt"
+  ],
+  "filenames": []
+ },
+ "source.yaml": {
+  "name": "YAML",
+  "extensions": [
+   ".yaml",
+   ".yml",
+   ".eyaml",
+   ".eyml",
+   ".cff",
+   ".yaml-tmlanguage",
+   ".yaml-tmpreferences",
+   ".yaml-tmtheme",
+   ".winget"
+  ],
+  "filenames": []
+ },
+ "source.kotlin": {
+  "name": "Kotlin",
+  "extensions": [
+   ".kt",
+   ".kts"
+  ],
+  "filenames": []
+ },
+ "text.html.basic": {
+  "name": "HTML",
+  "extensions": [
+   ".html",
+   ".htm",
+   ".shtml",
+   ".xhtml",
+   ".xht",
+   ".mdoc",
+   ".jsp",
+   ".asp",
+   ".aspx",
+   ".jshtm",
+   ".volt",
+   ".ejs",
+   ".rhtml"
+  ],
+  "filenames": []
+ }
+}
