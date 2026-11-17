@@ -43,6 +43,8 @@ import com.google.android.material.tabs.TabLayout
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.PublishSearchResultEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
+import io.github.rosemoe.sora.lang.diagnostic.DiagnosticRegion
+import io.github.rosemoe.sora.lang.diagnostic.DiagnosticsContainer
 import io.github.rosemoe.sora.util.regex.RegexBackrefGrammar
 import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.text.Content
@@ -228,6 +230,7 @@ class MainActivity : AppCompatActivity() {
             if (e.isCausedByUndoManager) doc.checkBackToSaved()
             if (recording && !replaying && !inCommand && !e.isCausedByUndoManager) recordChange(e)
             if (doc.bookmarks.isNotEmpty()) shiftBookmarks(doc, e)
+            if (editor.diagnostics != null) editor.diagnostics = null
             refreshState(doc)
         }
     }
@@ -505,6 +508,60 @@ class MainActivity : AppCompatActivity() {
             .setMessage(getString(R.string.info_text, chars, words, doc.content.lineCount, bytes, selected))
             .setPositiveButton(android.R.string.ok, null)
             .show()
+    }
+
+    /** Ersten Syntaxfehler suchen, unterstreichen und anbieten hinzuspringen. */
+    private fun checkSyntax() {
+        val doc = current ?: return
+        val name = SyntaxCheck.languageName(doc.scope)
+        if (name == null) {
+            Toast.makeText(this, R.string.syntax_nicht, Toast.LENGTH_LONG).show()
+            return
+        }
+        val text = doc.content.toString()
+        val version = doc.content.documentVersion
+        executor.execute {
+            val problem = try {
+                SyntaxCheck.check(doc.scope, text)
+            } catch (e: Throwable) {
+                SyntaxCheck.Problem(1, 1, e.message ?: e.javaClass.simpleName)
+            }
+            mainHandler.post {
+                if (isDestroyed || current !== doc || doc.content.documentVersion != version) return@post
+                if (problem == null) {
+                    editor.diagnostics = null
+                    Toast.makeText(this, getString(R.string.syntax_ok, name), Toast.LENGTH_SHORT).show()
+                    return@post
+                }
+                val content = doc.content
+                val line = (problem.line - 1).coerceIn(0, content.lineCount - 1)
+                val col = (problem.column - 1).coerceIn(0, content.getColumnCount(line))
+                // Fehlerzeichen unterstreichen, am Zeilenende die ganze Zeile
+                val lineStart = content.getCharIndex(line, 0)
+                val lineLen = content.getColumnCount(line)
+                val (from, to) = when {
+                    col < lineLen -> (lineStart + col) to (lineStart + col + 1)
+                    lineLen > 0 -> lineStart to (lineStart + lineLen)
+                    else -> (lineStart - 1).coerceAtLeast(0) to lineStart
+                }
+                editor.diagnostics = if (to > from && to <= content.length) {
+                    DiagnosticsContainer().apply {
+                        addDiagnostic(DiagnosticRegion(from, to, DiagnosticRegion.SEVERITY_ERROR))
+                    }
+                } else {
+                    null
+                }
+                MaterialAlertDialogBuilder(this)
+                    .setTitle(getString(R.string.syntax_fehler, name))
+                    .setMessage(getString(R.string.syntax_stelle, problem.line, problem.column, problem.message))
+                    .setPositiveButton(R.string.hinspringen) { _, _ ->
+                        editor.setSelection(line, col)
+                        editor.requestFocus()
+                    }
+                    .setNegativeButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
     }
 
     private fun toggleBookmark() {
@@ -1084,6 +1141,7 @@ class MainActivity : AppCompatActivity() {
                 KeyEvent.KEYCODE_Q -> cmd("comment")
                 KeyEvent.KEYCODE_U -> cmd(if (event.isShiftPressed) "case:UPPER" else "case:LOWER")
                 KeyEvent.KEYCODE_R -> event.isShiftPressed && edit { toggleRecording() }
+                KeyEvent.KEYCODE_M -> event.isShiftPressed && edit { checkSyntax() }
                 KeyEvent.KEYCODE_P -> event.isShiftPressed && edit { play(lastMacro, 1) }
                 KeyEvent.KEYCODE_F2 -> cmd("bm:toggle")
                 KeyEvent.KEYCODE_W -> {
@@ -1147,6 +1205,7 @@ class MainActivity : AppCompatActivity() {
         item(R.id.neu_laden, doc?.uri != null)
         item(R.id.sprache, has && !viewing)
         item(R.id.suchen, has)
+        item(R.id.syntax_pruefen, has && !viewing)
         item(R.id.ersetzen, has)
         item(R.id.gehe_zu, has)
         item(R.id.bearbeiten_menue, has)
@@ -1209,6 +1268,7 @@ class MainActivity : AppCompatActivity() {
             R.id.neu_laden -> doc?.let { reload(it) }
             R.id.sprache -> doc?.let { chooseLanguage(it) }
             R.id.suchen -> openSearch(false)
+            R.id.syntax_pruefen -> edit { checkSyntax() }
             R.id.ersetzen -> openSearch(true)
             R.id.gehe_zu -> goToLine()
             R.id.enc_utf8 -> doc?.let { changeFormat(it, it.format.copy(charset = Charsets.UTF_8, bom = false)) }
@@ -1338,6 +1398,7 @@ class MainActivity : AppCompatActivity() {
             tabs.getTabAt(index)?.select()
             suppressTabEvents = false
         }
+        editor.diagnostics = null
         editor.setText(doc.content)
         editor.isEditable = !doc.readOnly
         editor.setEditorLanguage(language(doc.scope))

@@ -113,6 +113,15 @@ Grundlage: das Hauptmenü von Notepad++ (`PowerEditor/src/Notepad_plus.rc`, Stan
 | Ausführen, Plugins, Plugin-Verwaltung | ✗ | gibt es auf Android so nicht |
 | Fensterliste | ◐ | Tabs |
 
+## Prüfen (in Notepad++ über Plugins)
+
+| Notepad++ | MD-Leser | Anmerkung |
+|---|---|---|
+| XML Tools: Syntax prüfen | ✅ | XML, XSL |
+| JSON Viewer | ◐ | Syntax prüfen; Baumansicht ✗ |
+| YAML, Lua prüfen | ✅ | Lua mit der Syntax von Lua 5.2, deckt WoW-Lua (5.1) ab |
+| Compiler/Interpreter starten (NppExec) | ✗ | gibt es auf Android so nicht |
+
 ## Nur im MD-Leser
 
 - Leseansicht für Markdown mit Tabellen, Aufgabenlisten und Links

@@ -204,6 +204,12 @@
         android:title="@string/neu_laden"
         app:showAsAction="never" />
     <item
+        android:id="@+id/syntax_pruefen"
+        android:orderInCategory="8"
+        android:title="@string/syntax_pruefen"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/sprache"
         android:orderInCategory="8"
         android:title="@string/sprache"

@@ -141,4 +141,10 @@
     <string name="links_schliessen">Alle links schließen</string>
     <string name="rechts_schliessen">Alle rechts schließen</string>
     <string name="unveraenderte_schliessen">Alle unveränderten schließen</string>
+    <string name="syntax_pruefen">Syntax prüfen (Strg+Umschalt+M)</string>
+    <string name="syntax_ok">✓ Keine Syntaxfehler (%1$s)</string>
+    <string name="syntax_fehler">Syntaxfehler (%1$s)</string>
+    <string name="syntax_stelle">Zeile %1$d, Spalte %2$d:\n%3$s</string>
+    <string name="syntax_nicht">Syntax prüfen geht für JSON, XML, YAML und Lua. Stell oben die Sprache passend ein.</string>
+    <string name="hinspringen">Hinspringen</string>
 </resources>
