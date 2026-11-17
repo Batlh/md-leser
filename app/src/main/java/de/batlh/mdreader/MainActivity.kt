@@ -190,6 +190,10 @@ class MainActivity : AppCompatActivity() {
         setupEditor(size)
         setupSearch()
 
+        findViewById<ImageButton>(R.id.tab_new).setOnClickListener { newDocument() }
+        // Tipp auf Dateiname/Statuszeile oben: Sprache wählen (wie die Statusleiste in Notepad++)
+        toolbar.setOnClickListener { current?.let { if (!it.viewMode) chooseLanguage(it) } }
+
         tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 if (!suppressTabEvents) docs.getOrNull(tab.position)?.let { switchTo(it) }
@@ -1371,7 +1375,6 @@ class MainActivity : AppCompatActivity() {
         editor.setText(Content())
         editor.visibility = View.GONE
         scroll.visibility = View.GONE
-        tabs.visibility = View.GONE
         emptyView.text = getString(R.string.leer)
         emptyView.visibility = View.VISIBLE
         updateTitle()

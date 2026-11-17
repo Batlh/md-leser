@@ -13,8 +13,8 @@ android {
         applicationId = "de.batlh.mdreader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.7.1"
     }
 
     // Im Build auf GitHub wird der eigene Schlüssel aus ci/release.keystore.enc genommen
