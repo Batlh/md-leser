@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import java.util.Locale
 

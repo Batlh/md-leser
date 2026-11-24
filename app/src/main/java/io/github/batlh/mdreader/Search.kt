@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import java.util.regex.Matcher
 import java.util.regex.Pattern

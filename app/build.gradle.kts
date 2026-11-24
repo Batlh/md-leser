@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    namespace = "de.batlh.mdreader"
+    namespace = "io.github.batlh.mdreader"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "de.batlh.mdreader"
+        applicationId = "io.github.batlh.mdreader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.8.0"
+        versionCode = 11
+        versionName = "1.9.0"
     }
 
     // Im Build auf GitHub wird der eigene Schlüssel aus ci/release.keystore.enc genommen

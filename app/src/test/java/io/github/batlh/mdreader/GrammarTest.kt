@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import org.eclipse.tm4e.core.registry.IGrammarSource
 import org.eclipse.tm4e.core.registry.IRegistryOptions

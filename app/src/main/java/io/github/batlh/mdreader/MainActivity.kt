@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import android.content.ClipData
 import android.content.ClipboardManager

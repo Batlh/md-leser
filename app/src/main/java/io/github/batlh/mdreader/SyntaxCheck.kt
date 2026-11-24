@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import com.google.gson.Strictness
 import com.google.gson.stream.JsonReader

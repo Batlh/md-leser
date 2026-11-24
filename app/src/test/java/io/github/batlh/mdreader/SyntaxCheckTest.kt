@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

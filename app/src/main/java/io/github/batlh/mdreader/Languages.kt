@@ -1,4 +1,4 @@
-package de.batlh.mdreader
+package io.github.batlh.mdreader
 
 import android.content.Context
 import io.github.rosemoe.sora.lang.EmptyLanguage
