@@ -23,7 +23,7 @@ object Languages {
     /** Themes: Name in assets/textmate/themes, Anzeigename, dunkel? */
     val THEMES = listOf(
         Triple("quietlight", "Hell (Quiet Light)", false),
-        Triple("darcula", "Dunkel (Darcula)", true),
+        Triple("monokai", "Dunkel (Monokai)", true),
         Triple("abyss", "Dunkelblau (Abyss)", true),
         Triple("solarized_dark", "Solarized Dark", true),
     )

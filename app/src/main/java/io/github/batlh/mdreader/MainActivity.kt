@@ -26,6 +26,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.PopupMenu
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
@@ -269,8 +270,9 @@ class MainActivity : AppCompatActivity() {
         )
 
     private fun applyTheme() {
-        val chosen = prefs.getString(KEY_THEME, "auto") ?: "auto"
-        Languages.setTheme(if (chosen == "auto") (if (isNight()) "darcula" else "quietlight") else chosen)
+        val saved = prefs.getString(KEY_THEME, "auto") ?: "auto"
+        val chosen = if (Languages.THEMES.any { it.first == saved }) saved else "auto"
+        Languages.setTheme(if (chosen == "auto") (if (isNight()) "monokai" else "quietlight") else chosen)
     }
 
     private fun chooseTheme() {
@@ -284,6 +286,46 @@ class MainActivity : AppCompatActivity() {
                 applyTheme()
                 d.dismiss()
             }
+            .show()
+    }
+
+    /** Version, Lizenz der App und Lizenzen aller verwendeten Fremdsoftware. */
+    private fun showAbout() {
+        val licenses = listOf(
+            "MIT-MD-Leser.txt" to "MIT-Lizenz (MD-Leser)",
+            "LGPL-2.1.txt" to "GNU LGPL 2.1 (Sora Editor)",
+            "EPL-2.0.txt" to "Eclipse Public License 2.0 (tm4e)",
+            "Apache-2.0.txt" to "Apache License 2.0 (Markwon, Gson, SnakeYAML Engine, AndroidX, Material, Kotlin)",
+            "MIT-VSCode.txt" to "MIT-Lizenz (VS Code)",
+            "MIT-vscode-kotlin.txt" to "MIT-Lizenz (vscode-kotlin)",
+            "MIT-LuaJ.txt" to "MIT-Lizenz (LuaJ)",
+            "MIT-joni.txt" to "MIT-Lizenz (Joni)",
+            "MIT-jcodings.txt" to "MIT-Lizenz (JCodings)",
+            "BSD-2-commonmark.txt" to "BSD 2-Clause (commonmark-java)",
+        )
+        fun asset(name: String) = assets.open("licenses/$name").bufferedReader().use { it.readText() }
+        val text = buildString {
+            append(asset("UEBERSICHT.md"))
+            for ((file, title) in licenses) {
+                append("\n\n## ").append(title).append("\n\n```\n").append(asset(file).trim()).append("\n```\n")
+            }
+        }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val view = TextView(this).apply {
+            setPadding(pad, pad / 2, pad, pad / 2)
+            setTextIsSelectable(true)
+            movementMethod = LinkMovementMethod.getInstance()
+        }
+        markwon.setMarkdown(view, text)
+        val version = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.ueber_titel, version))
+            .setView(ScrollView(this).apply { addView(view) })
+            .setPositiveButton(android.R.string.ok, null)
             .show()
     }
 
@@ -1314,6 +1356,7 @@ class MainActivity : AppCompatActivity() {
             R.id.mk_speichern -> saveMacro()
             R.id.mk_liste -> listMacros()
             R.id.st_farben -> chooseTheme()
+            R.id.ueber -> showAbout()
             R.id.st_tabbreite -> chooseTabWidth()
             R.id.st_leerzeichen -> togglePref(KEY_SPACES, false)
             R.id.st_zeile -> togglePref(KEY_CURRENT_LINE, true)

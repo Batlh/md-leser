@@ -273,4 +273,10 @@
         </menu>
     </item>
 
+    <item
+        android:id="@+id/ueber"
+        android:orderInCategory="31"
+        android:title="@string/ueber"
+        app:showAsAction="never" />
+
 </menu>

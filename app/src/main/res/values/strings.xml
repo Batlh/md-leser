@@ -147,4 +147,6 @@
     <string name="syntax_stelle">Zeile %1$d, Spalte %2$d:\n%3$s</string>
     <string name="syntax_nicht">Syntax prüfen geht für JSON, XML, YAML und Lua. Stell oben die Sprache passend ein.</string>
     <string name="hinspringen">Hinspringen</string>
+    <string name="ueber">Über &amp; Lizenzen</string>
+    <string name="ueber_titel">MD-Leser %1$s</string>
 </resources>

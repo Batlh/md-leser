@@ -34,9 +34,14 @@ Lokal: `./gradlew assembleRelease` (Android SDK nötig).
 
 ## Lizenz
 
-Eigener Code: MIT.
+Eigener Code: MIT. Die Funktionen sind Notepad++ nachempfunden, Code aus Notepad++ ist nicht enthalten.
 
-Verwendet:
-- [Sora Editor](https://github.com/Rosemoe/sora-editor) (LGPL 2.1) als Editor-Komponente
-- TextMate-Grammatiken aus [VS Code](https://github.com/microsoft/vscode) (MIT, siehe `app/src/main/assets/textmate/LICENSE-vscode.txt`)
-- [Markwon](https://github.com/noties/Markwon) (Apache 2.0) für die Markdown-Ansicht
+Verwendete Fremdsoftware:
+- [Sora Editor](https://github.com/Rosemoe/sora-editor) (LGPL 2.1), unverändert eingebunden, als Editor-Komponente
+- [tm4e](https://github.com/eclipse-tm4e/tm4e) (EPL 2.0), steckt in Sora und sorgt für die Syntax-Hervorhebung
+- TextMate-Grammatiken und Farbschemata aus [VS Code](https://github.com/microsoft/vscode) (MIT), Kotlin-Grammatik aus [vscode-kotlin](https://github.com/fwcd/vscode-kotlin) (MIT)
+- [Markwon](https://github.com/noties/Markwon) (Apache 2.0) mit [commonmark-java](https://github.com/commonmark/commonmark-java) (BSD 2-Clause) für die Markdown-Ansicht
+- [Gson](https://github.com/google/gson) und [SnakeYAML Engine](https://github.com/snakeyaml/snakeyaml-engine) (Apache 2.0), [LuaJ](https://github.com/luaj/luaj) (MIT) für „Syntax prüfen“
+- [Joni/JCodings](https://github.com/jruby/joni) (MIT), AndroidX, Material Components, Kotlin (Apache 2.0)
+
+Alle Lizenztexte liegen in `app/src/main/assets/licenses/` und sind in der App unter **⋮ → Über & Lizenzen** zu finden.

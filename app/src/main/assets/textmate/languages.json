@@ -245,7 +245,7 @@
    "scopeName": "source.yaml.embedded"
   },
   {
-   "grammar": "textmate/kotlin/syntaxes/Kotlin.tmLanguage",
+   "grammar": "textmate/kotlin/syntaxes/kotlin.tmLanguage.json",
    "name": "source.kotlin",
    "scopeName": "source.kotlin",
    "languageConfiguration": "textmate/kotlin/language-configuration.json"
